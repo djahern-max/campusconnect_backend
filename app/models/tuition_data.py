@@ -1,46 +1,33 @@
-# app/models/tuition_data.py
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Float,
-    Boolean,
-    Text,
-    TIMESTAMP,
-    ForeignKey,
-)
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, Boolean, ForeignKey
+from sqlalchemy.sql import func
 from app.core.database import Base
-from datetime import datetime
-
 
 class TuitionData(Base):
     __tablename__ = "tuition_data"
-
+    
     id = Column(Integer, primary_key=True, index=True)
-    institution_id = Column(Integer, ForeignKey("institutions.id", ondelete="CASCADE"))
+    institution_id = Column(Integer, ForeignKey("institutions.id", ondelete="CASCADE"), nullable=False, index=True)
     ipeds_id = Column(Integer, nullable=False, index=True)
-    academic_year = Column(String(10), nullable=False, index=True)
-    data_source = Column(String(500), nullable=False)
-
-    # Tuition and fees
-    tuition_in_state = Column(Float)
-    tuition_out_state = Column(Float)
-    required_fees_in_state = Column(Float)
-    required_fees_out_state = Column(Float)
-    room_board_on_campus = Column(Float)
-
-    # Admin override fields
-    last_updated_by = Column(Integer, ForeignKey("admin_users.id"))
-    is_admin_verified = Column(Boolean, default=False, nullable=False)
-    admin_notes = Column(Text)
-
-    # Timestamps
-    created_at = Column(TIMESTAMP, default=datetime.utcnow, nullable=False)
-    updated_at = Column(
-        TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    academic_year = Column(String(10), nullable=False)
+    data_source = Column(String(500))
+    
+    # Tuition costs
+    tuition_in_state = Column(Numeric(10, 2))
+    tuition_out_state = Column(Numeric(10, 2))
+    
+    # Required fees
+    required_fees_in_state = Column(Numeric(10, 2))
+    required_fees_out_state = Column(Numeric(10, 2))
+    
+    # Room and board
+    room_board_on_campus = Column(Numeric(10, 2))
+    
+    # Verification
+    is_admin_verified = Column(Boolean, default=False)
+    
+    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    __table_args__ = (
+        {'extend_existing': True}
     )
-
-    # Relationships
-    institution = relationship("Institution", back_populates="tuition_data")
-    updated_by_user = relationship("AdminUser", foreign_keys=[last_updated_by])

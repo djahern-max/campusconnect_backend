@@ -28,6 +28,8 @@ from app.api.v1 import (
     admin_extended_info,
     subscriptions,
     webhooks,
+    institutions_data,
+    admin_data,
 )
 
 app = FastAPI(
@@ -72,6 +74,8 @@ app.include_router(admin_videos.router, prefix="/api/v1")
 app.include_router(admin_extended_info.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
+app.include_router(institutions_data.router, prefix="/api/v1")
+app.include_router(admin_data.router, prefix="/api/v1")
 
 
 @app.get("/")
