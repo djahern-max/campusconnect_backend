@@ -1,0 +1,60 @@
+{
+  "authentication": {
+    "register": {
+      "method": "POST",
+      "url": "/api/v1/admin/auth/register",
+      "body": {
+        "email": "admin@example.com",
+        "password": "securepassword123",
+        "entity_type": "institution",
+        "entity_id": 1
+      }
+    },
+    "login": {
+      "method": "POST",
+      "url": "/api/v1/admin/auth/login",
+      "content_type": "application/x-www-form-urlencoded",
+      "body": {
+        "username": "admin@example.com",
+        "password": "securepassword123"
+      }
+    },
+    "get_current_user": {
+      "method": "GET",
+      "url": "/api/v1/admin/auth/me",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    }
+  },
+  "institutions": {
+    "list_all": {
+      "method": "GET",
+      "url": "/api/v1/institutions?limit=100&offset=0"
+    },
+    "filter_by_state": {
+      "method": "GET",
+      "url": "/api/v1/institutions?state=NH"
+    },
+    "get_single": {
+      "method": "GET",
+      "url": "/api/v1/institutions/102580"
+    }
+  },
+  "subscriptions": {
+    "create_checkout": {
+      "method": "POST",
+      "url": "/api/v1/admin/subscriptions/create-checkout",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    },
+    "get_current": {
+      "method": "GET",
+      "url": "/api/v1/admin/subscriptions/current",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    }
+  }
+}

@@ -1,0 +1,1450 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CampusConnect API",
+    "description": "B2B SaaS platform for institutions and scholarships",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/institutions": {
+      "get": {
+        "tags": [
+          "institutions"
+        ],
+        "summary": "Get Institutions",
+        "description": "Get all institutions with optional state filter",
+        "operationId": "get_institutions_api_v1_institutions_get",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstitutionResponse"
+                  },
+                  "title": "Response Get Institutions Api V1 Institutions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/institutions/{ipeds_id}": {
+      "get": {
+        "tags": [
+          "institutions"
+        ],
+        "summary": "Get Institution",
+        "description": "Get a single institution by IPEDS ID",
+        "operationId": "get_institution_api_v1_institutions__ipeds_id__get",
+        "parameters": [
+          {
+            "name": "ipeds_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ipeds Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstitutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scholarships": {
+      "get": {
+        "tags": [
+          "scholarships"
+        ],
+        "summary": "Get Scholarships",
+        "description": "Get all scholarships with optional filters",
+        "operationId": "get_scholarships_api_v1_scholarships_get",
+        "parameters": [
+          {
+            "name": "scholarship_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scholarship Type"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScholarshipResponse"
+                  },
+                  "title": "Response Get Scholarships Api V1 Scholarships Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scholarships/{scholarship_id}": {
+      "get": {
+        "tags": [
+          "scholarships"
+        ],
+        "summary": "Get Scholarship",
+        "description": "Get a single scholarship by ID",
+        "operationId": "get_scholarship_api_v1_scholarships__scholarship_id__get",
+        "parameters": [
+          {
+            "name": "scholarship_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scholarship Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScholarshipResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/auth/register": {
+      "post": {
+        "tags": [
+          "admin-auth"
+        ],
+        "summary": "Register",
+        "description": "Register a new admin user",
+        "operationId": "register_api_v1_admin_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/auth/login": {
+      "post": {
+        "tags": [
+          "admin-auth"
+        ],
+        "summary": "Login",
+        "description": "Login and get access token",
+        "operationId": "login_api_v1_admin_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_api_v1_admin_auth_login_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/auth/me": {
+      "get": {
+        "tags": [
+          "admin-auth"
+        ],
+        "summary": "Get Me",
+        "description": "Get current user info",
+        "operationId": "get_me_api_v1_admin_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/profile/entity": {
+      "get": {
+        "tags": [
+          "admin-profile"
+        ],
+        "summary": "Get My Entity",
+        "description": "Get the institution or scholarship this admin manages",
+        "operationId": "get_my_entity_api_v1_admin_profile_entity_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/profile/display-settings": {
+      "get": {
+        "tags": [
+          "admin-profile"
+        ],
+        "summary": "Get Display Settings",
+        "description": "Get display settings for my entity",
+        "operationId": "get_display_settings_api_v1_admin_profile_display_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisplaySettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin-profile"
+        ],
+        "summary": "Update Display Settings",
+        "description": "Update display settings for my entity",
+        "operationId": "update_display_settings_api_v1_admin_profile_display_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisplaySettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisplaySettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/images/upload": {
+      "post": {
+        "tags": [
+          "admin-images"
+        ],
+        "summary": "Upload Image",
+        "description": "Upload an image to DigitalOcean Spaces",
+        "operationId": "upload_image_api_v1_admin_images_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_image_api_v1_admin_images_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/images/list": {
+      "get": {
+        "tags": [
+          "admin-images"
+        ],
+        "summary": "List Images",
+        "description": "List all images for this entity from DigitalOcean Spaces",
+        "operationId": "list_images_api_v1_admin_images_list_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/images/{filename}": {
+      "delete": {
+        "tags": [
+          "admin-images"
+        ],
+        "summary": "Delete Image",
+        "description": "Delete an image from DigitalOcean Spaces",
+        "operationId": "delete_image_api_v1_admin_images__filename__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/subscriptions/create-checkout": {
+      "post": {
+        "tags": [
+          "subscriptions"
+        ],
+        "summary": "Create Checkout Session",
+        "description": "Create a Stripe checkout session for premium subscription",
+        "operationId": "create_checkout_session_api_v1_admin_subscriptions_create_checkout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/subscriptions/current": {
+      "get": {
+        "tags": [
+          "subscriptions"
+        ],
+        "summary": "Get Current Subscription",
+        "description": "Get current subscription status",
+        "operationId": "get_current_subscription_api_v1_admin_subscriptions_current_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/subscriptions/cancel": {
+      "post": {
+        "tags": [
+          "subscriptions"
+        ],
+        "summary": "Cancel Subscription",
+        "description": "Cancel subscription at end of period",
+        "operationId": "cancel_subscription_api_v1_admin_subscriptions_cancel_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/subscriptions/portal": {
+      "get": {
+        "tags": [
+          "subscriptions"
+        ],
+        "summary": "Get Customer Portal",
+        "description": "Get Stripe customer portal URL",
+        "operationId": "get_customer_portal_api_v1_admin_subscriptions_portal_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/webhooks/stripe": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Stripe Webhook",
+        "description": "Handle Stripe webhook events",
+        "operationId": "stripe_webhook_api_v1_webhooks_stripe_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminRegister": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "entity_id": {
+            "type": "integer",
+            "title": "Entity Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "entity_type",
+          "entity_id"
+        ],
+        "title": "AdminRegister"
+      },
+      "AdminResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "entity_id": {
+            "type": "integer",
+            "title": "Entity Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "entity_type",
+          "entity_id",
+          "role",
+          "is_active"
+        ],
+        "title": "AdminResponse"
+      },
+      "Body_login_api_v1_admin_auth_login_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "password"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_api_v1_admin_auth_login_post"
+      },
+      "Body_upload_image_api_v1_admin_images_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_image_api_v1_admin_images_upload_post"
+      },
+      "DisplaySettingsResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "entity_id": {
+            "type": "integer",
+            "title": "Entity Id"
+          },
+          "show_stats": {
+            "type": "boolean",
+            "title": "Show Stats"
+          },
+          "show_financial": {
+            "type": "boolean",
+            "title": "Show Financial"
+          },
+          "show_requirements": {
+            "type": "boolean",
+            "title": "Show Requirements"
+          },
+          "show_image_gallery": {
+            "type": "boolean",
+            "title": "Show Image Gallery"
+          },
+          "show_video": {
+            "type": "boolean",
+            "title": "Show Video"
+          },
+          "show_extended_info": {
+            "type": "boolean",
+            "title": "Show Extended Info"
+          },
+          "custom_tagline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Tagline"
+          },
+          "custom_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Description"
+          },
+          "extended_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extended Description"
+          },
+          "layout_style": {
+            "type": "string",
+            "title": "Layout Style"
+          },
+          "primary_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "entity_type",
+          "entity_id",
+          "show_stats",
+          "show_financial",
+          "show_requirements",
+          "show_image_gallery",
+          "show_video",
+          "show_extended_info",
+          "custom_tagline",
+          "custom_description",
+          "extended_description",
+          "layout_style",
+          "primary_color"
+        ],
+        "title": "DisplaySettingsResponse"
+      },
+      "DisplaySettingsUpdate": {
+        "properties": {
+          "show_stats": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Stats"
+          },
+          "show_financial": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Financial"
+          },
+          "show_requirements": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Requirements"
+          },
+          "show_image_gallery": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Image Gallery"
+          },
+          "show_video": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Video"
+          },
+          "show_extended_info": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Extended Info"
+          },
+          "custom_tagline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Tagline"
+          },
+          "custom_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Description"
+          },
+          "extended_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extended Description"
+          },
+          "layout_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layout Style"
+          },
+          "primary_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Color"
+          }
+        },
+        "type": "object",
+        "title": "DisplaySettingsUpdate"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InstitutionResponse": {
+        "properties": {
+          "ipeds_id": {
+            "type": "integer",
+            "title": "Ipeds Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "city": {
+            "type": "string",
+            "title": "City"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "control_type": {
+            "type": "string",
+            "title": "Control Type"
+          },
+          "primary_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Image Url"
+          },
+          "student_faculty_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Faculty Ratio"
+          },
+          "size_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Category"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ipeds_id",
+          "name",
+          "city",
+          "state",
+          "control_type",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "InstitutionResponse"
+      },
+      "ScholarshipResponse": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "scholarship_type": {
+            "type": "string",
+            "title": "Scholarship Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "difficulty_level": {
+            "type": "string",
+            "title": "Difficulty Level"
+          },
+          "amount_min": {
+            "type": "integer",
+            "title": "Amount Min"
+          },
+          "amount_max": {
+            "type": "integer",
+            "title": "Amount Max"
+          },
+          "is_renewable": {
+            "type": "boolean",
+            "title": "Is Renewable"
+          },
+          "number_of_awards": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number Of Awards"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "application_opens": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Opens"
+          },
+          "for_academic_year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "For Academic Year"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          },
+          "min_gpa": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Gpa"
+          },
+          "primary_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Image Url"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "views_count": {
+            "type": "integer",
+            "title": "Views Count"
+          },
+          "applications_count": {
+            "type": "integer",
+            "title": "Applications Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "organization",
+          "scholarship_type",
+          "status",
+          "difficulty_level",
+          "amount_min",
+          "amount_max",
+          "is_renewable",
+          "verified",
+          "featured",
+          "id",
+          "views_count",
+          "applications_count",
+          "created_at"
+        ],
+        "title": "ScholarshipResponse"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type"
+        ],
+        "title": "Token"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/api/v1/admin/auth/login"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": 1,
+  "entity_type": "institution",
+  "entity_id": 1,
+  "show_stats": true,
+  "show_financial": true,
+  "show_requirements": true,
+  "show_image_gallery": true,
+  "show_video": true,
+  "show_extended_info": true,
+  "custom_tagline": "Test Integration Tagline",
+  "custom_description": "string",
+  "extended_description": "string",
+  "layout_style": "string",
+  "primary_color": "string"
+}

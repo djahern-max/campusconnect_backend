@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: campusconnect_db
+    environment:
+      POSTGRES_DB: campusconnect_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build: .
+    container_name: campusconnect_api
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/campusconnect_db
+      SECRET_KEY: ${SECRET_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      DIGITAL_OCEAN_SPACES_ACCESS_KEY: ${DIGITAL_OCEAN_SPACES_ACCESS_KEY}
+      DIGITAL_OCEAN_SPACES_SECRET_KEY: ${DIGITAL_OCEAN_SPACES_SECRET_KEY}
+      DIGITAL_OCEAN_SPACES_ENDPOINT: ${DIGITAL_OCEAN_SPACES_ENDPOINT}
+      DIGITAL_OCEAN_SPACES_BUCKET: ${DIGITAL_OCEAN_SPACES_BUCKET}
+      DIGITAL_OCEAN_SPACES_REGION: ${DIGITAL_OCEAN_SPACES_REGION}
+      IMAGE_CDN_BASE_URL: ${IMAGE_CDN_BASE_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      ENVIRONMENT: production
+      DEBUG: false
+    volumes:
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: campusconnect_nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
