@@ -107,7 +107,7 @@ async def delete_gallery_image(
     current_user: AdminUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete image from gallery"""
+    """Delete image from gallery and DigitalOcean Spaces"""
     query = select(InstitutionImage).where(
         InstitutionImage.id == image_id,
         InstitutionImage.institution_id == current_user.entity_id
@@ -118,12 +118,14 @@ async def delete_gallery_image(
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
     
-    # Delete from storage
+    # Delete from DigitalOcean Spaces using full path
     try:
-        await image_service.delete_from_spaces(image.filename)
+        # Build the full path: campusconnect/institution_X/gallery/filename.png
+        full_path = f"campusconnect/institution_{current_user.entity_id}/gallery/{image.filename}"
+        await image_service.delete_from_spaces(full_path)
     except Exception as e:
-        # Log but don't fail if image already deleted from storage
-        pass
+        # Log the error but continue with database deletion
+        print(f"Warning: Failed to delete image from storage: {e}")
     
     # Delete from database
     await db.delete(image)

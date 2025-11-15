@@ -707,7 +707,7 @@
           "admin-gallery"
         ],
         "summary": "Delete Gallery Image",
-        "description": "Delete image from gallery",
+        "description": "Delete image from gallery and DigitalOcean Spaces",
         "operationId": "delete_gallery_image_api_v1_admin_gallery__image_id__delete",
         "security": [
           {
