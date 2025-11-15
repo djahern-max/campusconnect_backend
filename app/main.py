@@ -13,19 +13,20 @@ from app.core.exceptions import (
     campusconnect_exception_handler,
     validation_exception_handler,
     sqlalchemy_exception_handler,
-    generic_exception_handler
+    generic_exception_handler,
 )
 from app.api.v1 import (
     institutions,
     scholarships,
     admin_auth,
+    outreach,
     admin_profile,
     admin_images,
     admin_gallery,
     admin_videos,
     admin_extended_info,
     subscriptions,
-    webhooks
+    webhooks,
 )
 
 app = FastAPI(
@@ -33,7 +34,7 @@ app = FastAPI(
     description="B2B SaaS platform for institutions and scholarships",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Add request logging middleware
@@ -62,6 +63,7 @@ app.add_middleware(
 app.include_router(institutions.router, prefix="/api/v1")
 app.include_router(scholarships.router, prefix="/api/v1")
 app.include_router(admin_auth.router, prefix="/api/v1")
+app.include_router(outreach.router, prefix="/api/v1")
 app.include_router(admin_profile.router, prefix="/api/v1")
 app.include_router(admin_images.router, prefix="/api/v1")
 app.include_router(admin_gallery.router, prefix="/api/v1")
@@ -69,6 +71,7 @@ app.include_router(admin_videos.router, prefix="/api/v1")
 app.include_router(admin_extended_info.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
+
 
 @app.get("/")
 @limiter.limit("100/minute")
@@ -88,14 +91,16 @@ async def root(request: Request):
             "admin_videos": "/api/v1/admin/videos",
             "admin_extended_info": "/api/v1/admin/extended-info",
             "subscriptions": "/api/v1/admin/subscriptions",
-            "webhooks": "/api/v1/webhooks/stripe"
-        }
+            "webhooks": "/api/v1/webhooks/stripe",
+        },
     }
+
 
 @app.get("/health")
 @limiter.limit("100/minute")
 async def health_check(request: Request):
     return {"status": "healthy", "version": "1.0.0"}
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -107,6 +112,7 @@ async def startup_event():
     logger.info("🎥 Video management enabled")
     logger.info("📄 Extended info enabled")
     logger.info("✅ All systems ready!")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():

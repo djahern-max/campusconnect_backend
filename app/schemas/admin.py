@@ -4,8 +4,7 @@ from typing import Optional
 class AdminRegister(BaseModel):
     email: EmailStr
     password: str
-    entity_type: str  # 'institution' or 'scholarship'
-    entity_id: int
+    invitation_code: str  # REQUIRED for registration
 
 class AdminLogin(BaseModel):
     email: EmailStr

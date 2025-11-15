@@ -1,0 +1,105 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.core.database import get_db
+from app.core.security import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    verify_token,
+)
+from app.core.rate_limit import limiter, RATE_LIMITS
+from app.models.admin_user import AdminUser
+from app.schemas.admin import AdminRegister, AdminLogin, AdminResponse, Token
+
+router = APIRouter(prefix="/admin/auth", tags=["admin-auth"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/admin/auth/login")
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+) -> AdminUser:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    payload = verify_token(token)
+    if payload is None:
+        raise credentials_exception
+
+    email: str = payload.get("sub")
+    if email is None:
+        raise credentials_exception
+
+    query = select(AdminUser).where(AdminUser.email == email)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise credentials_exception
+
+    return user
+
+
+@router.post("/register", response_model=AdminResponse)
+@limiter.limit(RATE_LIMITS["auth"])
+async def register(
+    request: Request, admin_data: AdminRegister, db: AsyncSession = Depends(get_db)
+):
+    """Register a new admin user"""
+    # Check if email already exists
+    query = select(AdminUser).where(AdminUser.email == admin_data.email)
+    result = await db.execute(query)
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Create new admin user
+    hashed_password = get_password_hash(admin_data.password)
+    new_admin = AdminUser(
+        email=admin_data.email,
+        hashed_password=hashed_password,
+        entity_type=admin_data.entity_type,
+        entity_id=admin_data.entity_id,
+    )
+
+    db.add(new_admin)
+    await db.commit()
+    await db.refresh(new_admin)
+
+    return new_admin
+
+
+@router.post("/login", response_model=Token)
+@limiter.limit(RATE_LIMITS["auth"])
+async def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+):
+    """Login and get access token"""
+    query = select(AdminUser).where(AdminUser.email == form_data.username)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=AdminResponse)
+@limiter.limit(RATE_LIMITS["admin"])
+async def get_me(request: Request, current_user: AdminUser = Depends(get_current_user)):
+    """Get current user info"""
+    return current_user
