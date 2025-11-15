@@ -4,9 +4,10 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from app.core.config import settings
+from app.tasks.cleanup import start_scheduler
 from app.core.rate_limit import limiter
 from app.core.logging_config import logger
+from app.core.config import settings  # ← ADD THIS IMPORT (you were missing it)
 from app.middleware.logging import RequestLoggingMiddleware
 from app.core.exceptions import (
     CampusConnectException,
@@ -102,8 +103,10 @@ async def health_check(request: Request):
     return {"status": "healthy", "version": "1.0.0"}
 
 
+# COMBINE BOTH STARTUP EVENTS INTO ONE
 @app.on_event("startup")
 async def startup_event():
+    """Run on application startup"""
     logger.info("🚀 CampusConnect API starting up...")
     logger.info(f"📊 Database: {settings.DATABASE_URL[:30]}...")
     logger.info("🛡️  Rate limiting enabled")
@@ -111,6 +114,11 @@ async def startup_event():
     logger.info("🖼️  Gallery management enabled")
     logger.info("🎥 Video management enabled")
     logger.info("📄 Extended info enabled")
+
+    # Start the scheduler for invitation cleanup
+    start_scheduler()
+    logger.info("⏰ Invitation cleanup scheduler started")
+
     logger.info("✅ All systems ready!")
 
 
