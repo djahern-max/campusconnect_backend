@@ -7,7 +7,7 @@ export interface Institution {
   ipeds_id: number;
   name: string;
   city: string;
-  state: string;
+  state: string;  // 2-letter code
   control_type: 'PUBLIC' | 'PRIVATE_NONPROFIT' | 'PRIVATE_FOR_PROFIT';
   primary_image_url: string | null;
   student_faculty_ratio: number | null;
@@ -54,33 +54,16 @@ export interface DisplaySettings {
   show_stats: boolean;
   show_financial: boolean;
   show_requirements: boolean;
-  show_image_gallery: boolean;
-  show_video: boolean;
-  show_extended_info: boolean;
-  custom_tagline: string | null;
+  show_image_gallery: boolean;  // Premium only
+  show_video: boolean;           // Premium only
+  show_extended_info: boolean;   // Premium only
+  custom_tagline: string | null; // Premium only
   custom_description: string | null;
   extended_description: string | null;
   layout_style: string;
-  primary_color: string | null;
+  primary_color: string | null;  // Hex color
 }
 
-
-export interface Subscription {
-  status: string;
-  plan_tier: string;
-  current_period_start?: number;
-  current_period_end?: number;
-  cancel_at_period_end?: boolean;
-  trial_end?: number | null;
-}
-
-
-export interface AuthToken {
-  access_token: string;
-  token_type: 'bearer';
-}
-
-// New types for Phase 1 features
 
 export interface InstitutionImage {
   id: number;
@@ -95,6 +78,7 @@ export interface InstitutionImage {
   created_at: string;
 }
 
+
 export interface InstitutionVideo {
   id: number;
   institution_id: number;
@@ -107,6 +91,7 @@ export interface InstitutionVideo {
   is_featured: boolean;
   created_at: string;
 }
+
 
 export interface CustomSection {
   title: string;
@@ -150,11 +135,18 @@ export interface InstitutionExtendedInfo {
   updated_at: string;
 }
 
-// Request types
-export interface ImageReorderRequest {
-  image_ids: number[];
+
+export interface Subscription {
+  status: string;
+  plan_tier: string;
+  current_period_start?: number;
+  current_period_end?: number;
+  cancel_at_period_end?: boolean;
+  trial_end?: number | null;
 }
 
-export interface VideoReorderRequest {
-  video_ids: number[];
+
+export interface AuthToken {
+  access_token: string;
+  token_type: 'bearer';
 }

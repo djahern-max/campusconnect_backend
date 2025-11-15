@@ -18,13 +18,6 @@
         "username": "admin@example.com",
         "password": "securepassword123"
       }
-    },
-    "get_current_user": {
-      "method": "GET",
-      "url": "/api/v1/admin/auth/me",
-      "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
-      }
     }
   },
   "institutions": {
@@ -35,25 +28,84 @@
     "filter_by_state": {
       "method": "GET",
       "url": "/api/v1/institutions?state=NH"
-    },
-    "get_single": {
-      "method": "GET",
-      "url": "/api/v1/institutions/102580"
     }
   },
-  "subscriptions": {
-    "create_checkout": {
+  "gallery": {
+    "upload_image": {
       "method": "POST",
-      "url": "/api/v1/admin/subscriptions/create-checkout",
+      "url": "/api/v1/admin/gallery",
       "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
+        "Authorization": "Bearer TOKEN"
+      },
+      "content_type": "multipart/form-data",
+      "body": {
+        "file": "[binary]",
+        "caption": "Beautiful campus view",
+        "image_type": "campus"
       }
     },
-    "get_current": {
+    "list_images": {
       "method": "GET",
-      "url": "/api/v1/admin/subscriptions/current",
+      "url": "/api/v1/admin/gallery",
       "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
+        "Authorization": "Bearer TOKEN"
+      }
+    },
+    "reorder": {
+      "method": "PUT",
+      "url": "/api/v1/admin/gallery/reorder",
+      "headers": {
+        "Authorization": "Bearer TOKEN"
+      },
+      "body": {
+        "image_ids": [
+          3,
+          1,
+          2
+        ]
+      }
+    }
+  },
+  "videos": {
+    "add_video": {
+      "method": "POST",
+      "url": "/api/v1/admin/videos",
+      "headers": {
+        "Authorization": "Bearer TOKEN"
+      },
+      "body": {
+        "video_url": "https://youtube.com/watch?v=...",
+        "title": "Campus Tour 2025",
+        "description": "Virtual tour",
+        "video_type": "tour",
+        "is_featured": true
+      }
+    },
+    "list_videos": {
+      "method": "GET",
+      "url": "/api/v1/admin/videos",
+      "headers": {
+        "Authorization": "Bearer TOKEN"
+      }
+    }
+  },
+  "extended_info": {
+    "update": {
+      "method": "PUT",
+      "url": "/api/v1/admin/extended-info",
+      "headers": {
+        "Authorization": "Bearer TOKEN"
+      },
+      "body": {
+        "campus_description": "Beautiful campus...",
+        "student_life": "Vibrant community...",
+        "custom_sections": [
+          {
+            "title": "Why Choose Us",
+            "content": "Excellence...",
+            "order": 1
+          }
+        ]
       }
     }
   }

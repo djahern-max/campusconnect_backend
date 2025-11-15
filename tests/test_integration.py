@@ -331,3 +331,205 @@ class TestErrorHandling:
 
 
 # Run all tests with: pytest tests/test_integration.py -v -s
+
+
+class TestGalleryManagement:
+    """Test gallery management features"""
+    
+    async def get_auth_token(self):
+        """Helper to get auth token"""
+        await asyncio.sleep(1)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{BASE_URL}/api/v1/admin/auth/login",
+                data={"username": "admin@snhu.edu", "password": "test123"}
+            )
+            if response.status_code != 200:
+                print(f"Login failed: {response.text}")
+                return None
+            return response.json()["access_token"]
+    
+    @pytest.mark.asyncio
+    async def test_upload_gallery_image(self):
+        """Test uploading image to gallery"""
+        token = await self.get_auth_token()
+        assert token is not None
+        
+        # Create a simple test image
+        import io
+        from PIL import Image
+        
+        img = Image.new('RGB', (100, 100), color='red')
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format='PNG')
+        img_bytes.seek(0)
+        
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            files = {"file": ("test.png", img_bytes, "image/png")}
+            data = {
+                "caption": "Test gallery image",
+                "image_type": "campus"
+            }
+            
+            response = await client.post(
+                f"{BASE_URL}/api/v1/admin/gallery",
+                headers=headers,
+                files=files,
+                data=data
+            )
+            
+            assert response.status_code == 200
+            result = response.json()
+            assert result["caption"] == "Test gallery image"
+            assert result["image_type"] == "campus"
+            assert "cdn_url" in result
+            print(f"✅ Gallery image uploaded: {result['filename']}")
+    
+    @pytest.mark.asyncio
+    async def test_get_gallery_images(self):
+        """Test getting all gallery images"""
+        token = await self.get_auth_token()
+        assert token is not None
+        
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            response = await client.get(
+                f"{BASE_URL}/api/v1/admin/gallery",
+                headers=headers
+            )
+            
+            assert response.status_code == 200
+            images = response.json()
+            assert isinstance(images, list)
+            print(f"✅ Got {len(images)} gallery images")
+
+
+class TestVideoManagement:
+    """Test video management features"""
+    
+    async def get_auth_token(self):
+        """Helper to get auth token"""
+        await asyncio.sleep(1)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{BASE_URL}/api/v1/admin/auth/login",
+                data={"username": "admin@snhu.edu", "password": "test123"}
+            )
+            if response.status_code != 200:
+                return None
+            return response.json()["access_token"]
+    
+    @pytest.mark.asyncio
+    async def test_add_video(self):
+        """Test adding a video"""
+        token = await self.get_auth_token()
+        assert token is not None
+        
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            video_data = {
+                "video_url": "https://www.youtube.com/watch?v=test123",
+                "title": "Campus Tour",
+                "description": "Virtual tour of our campus",
+                "video_type": "tour",
+                "is_featured": True
+            }
+            
+            response = await client.post(
+                f"{BASE_URL}/api/v1/admin/videos",
+                headers=headers,
+                json=video_data
+            )
+            
+            assert response.status_code == 200
+            result = response.json()
+            assert result["title"] == "Campus Tour"
+            assert result["video_type"] == "tour"
+            print(f"✅ Video added: {result['title']}")
+    
+    @pytest.mark.asyncio
+    async def test_get_videos(self):
+        """Test getting all videos"""
+        token = await self.get_auth_token()
+        assert token is not None
+        
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            response = await client.get(
+                f"{BASE_URL}/api/v1/admin/videos",
+                headers=headers
+            )
+            
+            assert response.status_code == 200
+            videos = response.json()
+            assert isinstance(videos, list)
+            print(f"✅ Got {len(videos)} videos")
+
+
+class TestExtendedInfo:
+    """Test extended info management"""
+    
+    async def get_auth_token(self):
+        """Helper to get auth token"""
+        await asyncio.sleep(1)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{BASE_URL}/api/v1/admin/auth/login",
+                data={"username": "admin@snhu.edu", "password": "test123"}
+            )
+            if response.status_code != 200:
+                return None
+            return response.json()["access_token"]
+    
+    @pytest.mark.asyncio
+    async def test_update_extended_info(self):
+        """Test updating extended info"""
+        token = await self.get_auth_token()
+        assert token is not None
+        
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            extended_data = {
+                "campus_description": "Beautiful 300-acre campus",
+                "student_life": "Vibrant community",
+                "programs_overview": "50+ programs available",
+                "custom_sections": [
+                    {
+                        "title": "Why Choose Us",
+                        "content": "Excellence in education",
+                        "order": 1
+                    }
+                ]
+            }
+            
+            response = await client.put(
+                f"{BASE_URL}/api/v1/admin/extended-info",
+                headers=headers,
+                json=extended_data
+            )
+            
+            assert response.status_code == 200
+            result = response.json()
+            assert result["campus_description"] == "Beautiful 300-acre campus"
+            assert len(result["custom_sections"]) == 1
+            print(f"✅ Extended info updated")
+    
+    @pytest.mark.asyncio
+    async def test_get_extended_info(self):
+        """Test getting extended info"""
+        token = await self.get_auth_token()
+        assert token is not None
+        
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            response = await client.get(
+                f"{BASE_URL}/api/v1/admin/extended-info",
+                headers=headers
+            )
+            
+            assert response.status_code == 200
+            result = response.json()
+            assert "campus_description" in result
+            assert "custom_sections" in result
+            print(f"✅ Extended info retrieved")

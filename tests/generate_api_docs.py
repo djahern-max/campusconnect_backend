@@ -43,7 +43,7 @@ export interface Institution {
   ipeds_id: number;
   name: string;
   city: string;
-  state: string;
+  state: string;  // 2-letter code
   control_type: 'PUBLIC' | 'PRIVATE_NONPROFIT' | 'PRIVATE_FOR_PROFIT';
   primary_image_url: string | null;
   student_faculty_ratio: number | null;
@@ -96,14 +96,91 @@ export interface DisplaySettings {
   show_stats: boolean;
   show_financial: boolean;
   show_requirements: boolean;
-  show_image_gallery: boolean;
-  show_video: boolean;
-  show_extended_info: boolean;
-  custom_tagline: string | null;
+  show_image_gallery: boolean;  // Premium only
+  show_video: boolean;           // Premium only
+  show_extended_info: boolean;   // Premium only
+  custom_tagline: string | null; // Premium only
   custom_description: string | null;
   extended_description: string | null;
   layout_style: string;
-  primary_color: string | null;
+  primary_color: string | null;  // Hex color
+}
+""")
+    
+    # Institution Image interface
+    interfaces.append("""
+export interface InstitutionImage {
+  id: number;
+  institution_id: number;
+  image_url: string;
+  cdn_url: string;
+  filename: string;
+  caption: string | null;
+  display_order: number;
+  is_featured: boolean;
+  image_type: string | null; // 'campus' | 'students' | 'facilities' | 'events'
+  created_at: string;
+}
+""")
+    
+    # Institution Video interface
+    interfaces.append("""
+export interface InstitutionVideo {
+  id: number;
+  institution_id: number;
+  video_url: string;
+  title: string | null;
+  description: string | null;
+  thumbnail_url: string | null;
+  video_type: string | null; // 'tour' | 'testimonial' | 'overview' | 'custom'
+  display_order: number;
+  is_featured: boolean;
+  created_at: string;
+}
+""")
+    
+    # Extended Info interface
+    interfaces.append("""
+export interface CustomSection {
+  title: string;
+  content: string;
+  order: number;
+}
+
+export interface InstitutionExtendedInfo {
+  id: number;
+  institution_id: number;
+  
+  // Campus Life
+  campus_description: string | null;
+  student_life: string | null;
+  housing_info: string | null;
+  dining_info: string | null;
+  
+  // Academics
+  programs_overview: string | null;
+  faculty_highlights: string | null;
+  research_opportunities: string | null;
+  study_abroad: string | null;
+  
+  // Admissions
+  application_tips: string | null;
+  financial_aid_info: string | null;
+  scholarship_opportunities: string | null;
+  
+  // Athletics & Activities
+  athletics_overview: string | null;
+  clubs_organizations: string | null;
+  
+  // Location & Facilities
+  location_highlights: string | null;
+  facilities_overview: string | null;
+  
+  // Custom Sections
+  custom_sections: CustomSection[] | null;
+  
+  created_at: string;
+  updated_at: string;
 }
 """)
     
@@ -157,13 +234,6 @@ def generate_example_requests():
                     "username": "admin@example.com",
                     "password": "securepassword123"
                 }
-            },
-            "get_current_user": {
-                "method": "GET",
-                "url": "/api/v1/admin/auth/me",
-                "headers": {
-                    "Authorization": "Bearer YOUR_TOKEN_HERE"
-                }
             }
         },
         "institutions": {
@@ -174,25 +244,68 @@ def generate_example_requests():
             "filter_by_state": {
                 "method": "GET",
                 "url": "/api/v1/institutions?state=NH"
-            },
-            "get_single": {
-                "method": "GET",
-                "url": "/api/v1/institutions/102580"
             }
         },
-        "subscriptions": {
-            "create_checkout": {
+        "gallery": {
+            "upload_image": {
                 "method": "POST",
-                "url": "/api/v1/admin/subscriptions/create-checkout",
-                "headers": {
-                    "Authorization": "Bearer YOUR_TOKEN_HERE"
+                "url": "/api/v1/admin/gallery",
+                "headers": {"Authorization": "Bearer TOKEN"},
+                "content_type": "multipart/form-data",
+                "body": {
+                    "file": "[binary]",
+                    "caption": "Beautiful campus view",
+                    "image_type": "campus"
                 }
             },
-            "get_current": {
+            "list_images": {
                 "method": "GET",
-                "url": "/api/v1/admin/subscriptions/current",
-                "headers": {
-                    "Authorization": "Bearer YOUR_TOKEN_HERE"
+                "url": "/api/v1/admin/gallery",
+                "headers": {"Authorization": "Bearer TOKEN"}
+            },
+            "reorder": {
+                "method": "PUT",
+                "url": "/api/v1/admin/gallery/reorder",
+                "headers": {"Authorization": "Bearer TOKEN"},
+                "body": {
+                    "image_ids": [3, 1, 2]
+                }
+            }
+        },
+        "videos": {
+            "add_video": {
+                "method": "POST",
+                "url": "/api/v1/admin/videos",
+                "headers": {"Authorization": "Bearer TOKEN"},
+                "body": {
+                    "video_url": "https://youtube.com/watch?v=...",
+                    "title": "Campus Tour 2025",
+                    "description": "Virtual tour",
+                    "video_type": "tour",
+                    "is_featured": True
+                }
+            },
+            "list_videos": {
+                "method": "GET",
+                "url": "/api/v1/admin/videos",
+                "headers": {"Authorization": "Bearer TOKEN"}
+            }
+        },
+        "extended_info": {
+            "update": {
+                "method": "PUT",
+                "url": "/api/v1/admin/extended-info",
+                "headers": {"Authorization": "Bearer TOKEN"},
+                "body": {
+                    "campus_description": "Beautiful campus...",
+                    "student_life": "Vibrant community...",
+                    "custom_sections": [
+                        {
+                            "title": "Why Choose Us",
+                            "content": "Excellence...",
+                            "order": 1
+                        }
+                    ]
                 }
             }
         }
