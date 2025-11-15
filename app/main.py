@@ -21,6 +21,9 @@ from app.api.v1 import (
     admin_auth,
     admin_profile,
     admin_images,
+    admin_gallery,
+    admin_videos,
+    admin_extended_info,
     subscriptions,
     webhooks
 )
@@ -61,6 +64,9 @@ app.include_router(scholarships.router, prefix="/api/v1")
 app.include_router(admin_auth.router, prefix="/api/v1")
 app.include_router(admin_profile.router, prefix="/api/v1")
 app.include_router(admin_images.router, prefix="/api/v1")
+app.include_router(admin_gallery.router, prefix="/api/v1")
+app.include_router(admin_videos.router, prefix="/api/v1")
+app.include_router(admin_extended_info.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
 
@@ -78,6 +84,9 @@ async def root(request: Request):
             "admin_auth": "/api/v1/admin/auth",
             "admin_profile": "/api/v1/admin/profile",
             "admin_images": "/api/v1/admin/images",
+            "admin_gallery": "/api/v1/admin/gallery",
+            "admin_videos": "/api/v1/admin/videos",
+            "admin_extended_info": "/api/v1/admin/extended-info",
             "subscriptions": "/api/v1/admin/subscriptions",
             "webhooks": "/api/v1/webhooks/stripe"
         }
@@ -94,6 +103,9 @@ async def startup_event():
     logger.info(f"📊 Database: {settings.DATABASE_URL[:30]}...")
     logger.info("🛡️  Rate limiting enabled")
     logger.info("📝 Request logging enabled")
+    logger.info("🖼️  Gallery management enabled")
+    logger.info("🎥 Video management enabled")
+    logger.info("📄 Extended info enabled")
     logger.info("✅ All systems ready!")
 
 @app.on_event("shutdown")

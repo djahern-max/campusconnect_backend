@@ -79,3 +79,82 @@ export interface AuthToken {
   access_token: string;
   token_type: 'bearer';
 }
+
+// New types for Phase 1 features
+
+export interface InstitutionImage {
+  id: number;
+  institution_id: number;
+  image_url: string;
+  cdn_url: string;
+  filename: string;
+  caption: string | null;
+  display_order: number;
+  is_featured: boolean;
+  image_type: string | null; // 'campus' | 'students' | 'facilities' | 'events'
+  created_at: string;
+}
+
+export interface InstitutionVideo {
+  id: number;
+  institution_id: number;
+  video_url: string;
+  title: string | null;
+  description: string | null;
+  thumbnail_url: string | null;
+  video_type: string | null; // 'tour' | 'testimonial' | 'overview' | 'custom'
+  display_order: number;
+  is_featured: boolean;
+  created_at: string;
+}
+
+export interface CustomSection {
+  title: string;
+  content: string;
+  order: number;
+}
+
+export interface InstitutionExtendedInfo {
+  id: number;
+  institution_id: number;
+  
+  // Campus Life
+  campus_description: string | null;
+  student_life: string | null;
+  housing_info: string | null;
+  dining_info: string | null;
+  
+  // Academics
+  programs_overview: string | null;
+  faculty_highlights: string | null;
+  research_opportunities: string | null;
+  study_abroad: string | null;
+  
+  // Admissions
+  application_tips: string | null;
+  financial_aid_info: string | null;
+  scholarship_opportunities: string | null;
+  
+  // Athletics & Activities
+  athletics_overview: string | null;
+  clubs_organizations: string | null;
+  
+  // Location & Facilities
+  location_highlights: string | null;
+  facilities_overview: string | null;
+  
+  // Custom Sections
+  custom_sections: CustomSection[] | null;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+// Request types
+export interface ImageReorderRequest {
+  image_ids: number[];
+}
+
+export interface VideoReorderRequest {
+  video_ids: number[];
+}
