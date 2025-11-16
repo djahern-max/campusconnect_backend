@@ -55,6 +55,17 @@ async def get_current_user(
     return user
 
 
+async def get_current_super_admin(
+    current_user: AdminUser = Depends(get_current_user),
+) -> AdminUser:
+    """Verify user is a super admin"""
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required"
+        )
+    return current_user
+
+
 @router.post("/validate-invitation", response_model=InvitationValidateResponse)
 @limiter.limit(RATE_LIMITS["auth"])
 async def validate_invitation(
@@ -199,21 +210,14 @@ async def get_me(request: Request, current_user: AdminUser = Depends(get_current
 async def create_invitation(
     request: Request,
     invitation_data: InvitationCodeCreate,
-    current_user: AdminUser = Depends(get_current_user),
+    current_user: AdminUser = Depends(get_current_super_admin),  # CHANGED
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate a new invitation code (Super Admin only in production)"""
-    # In production, check if user is super_admin
-    # if current_user.role != 'super_admin':
-    #     raise HTTPException(status_code=403, detail="Only super admins can generate invitations")
-
-    # Generate unique code
+    """Generate a new invitation code (Super Admin only)"""
+    # Remove the commented code - it's now handled by dependency
     code = InvitationCode.generate_code()
-
-    # Calculate expiration (use timezone-naive for database compatibility)
     expires_at = datetime.utcnow() + timedelta(days=invitation_data.expires_in_days)
 
-    # Create invitation
     new_invitation = InvitationCode(
         code=code,
         entity_type=invitation_data.entity_type,
@@ -236,10 +240,10 @@ async def list_invitations(
     request: Request,
     status: str = None,
     limit: int = 100,
-    current_user: AdminUser = Depends(get_current_user),
+    current_user: AdminUser = Depends(get_current_super_admin),  # CHANGED
     db: AsyncSession = Depends(get_db),
 ):
-    """List all invitation codes"""
+    """List all invitation codes (Super Admin only)"""
     query = select(InvitationCode).order_by(InvitationCode.created_at.desc())
 
     if status:
@@ -258,15 +262,11 @@ async def list_invitations(
 async def revoke_invitation(
     request: Request,
     invitation_id: int,
-    current_user: AdminUser = Depends(get_current_user),
+    current_user: AdminUser = Depends(get_current_super_admin),  # CHANGED
     db: AsyncSession = Depends(get_db),
 ):
     """Manually revoke an invitation (Super Admin only)"""
-    # Optional: Check if user is super admin (uncomment in production)
-    # if current_user.role != 'super_admin':
-    #     raise HTTPException(status_code=403, detail="Only super admins can revoke invitations")
-
-    # Fetch the invitation
+    # Remove the commented code - it's now handled by dependency
     query = select(InvitationCode).where(InvitationCode.id == invitation_id)
     result = await db.execute(query)
     invitation = result.scalar_one_or_none()
@@ -274,13 +274,11 @@ async def revoke_invitation(
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
 
-    # Can't revoke already claimed invitations
     if invitation.status == InvitationStatus.CLAIMED:
         raise HTTPException(
             status_code=400, detail="Cannot revoke a claimed invitation"
         )
 
-    # Revoke the invitation
     invitation.status = InvitationStatus.REVOKED
     await db.commit()
 

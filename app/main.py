@@ -7,8 +7,10 @@ from slowapi.errors import RateLimitExceeded
 from app.tasks.cleanup import start_scheduler
 from app.core.rate_limit import limiter
 from app.core.logging_config import logger
-from app.core.config import settings  # ← ADD THIS IMPORT (you were missing it)
+from app.core.config import settings
 from app.middleware.logging import RequestLoggingMiddleware
+from fastapi.responses import PlainTextResponse
+from fastapi.routing import APIRoute
 from app.core.exceptions import (
     CampusConnectException,
     campusconnect_exception_handler,
@@ -129,3 +131,17 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("👋 CampusConnect API shutting down...")
+
+
+@app.get("/routes-simple", response_class=PlainTextResponse)
+async def get_routes_simple():
+    """
+    Returns a concise list of all routes with their paths and methods.
+    """
+    routes = []
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            methods = ", ".join(route.methods)
+            routes.append(f"{methods}: {route.path}")
+
+    return "\n".join(routes)

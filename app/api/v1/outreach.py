@@ -4,10 +4,14 @@ from sqlalchemy import select, update, func, or_
 from typing import List, Optional
 from datetime import datetime, timedelta
 from app.core.database import get_db
-from app.api.v1.admin_auth import get_current_user
+from app.api.v1.admin_auth import get_current_super_admin
 from app.models.admin_user import AdminUser
-from app.models.outreach_tracking import OutreachTracking, ContactStatus, ContactMethod
-from app.models.message_templates import MessageTemplate, OutreachActivity
+from app.models.outreach_tracking import (
+    OutreachTracking,
+    ContactStatus,
+    ContactMethod,
+)  # ADD ContactMethod
+from app.models.message_templates import MessageTemplate
 from app.models.institution import Institution
 from app.models.scholarship import Scholarship
 from app.models.invitation_code import InvitationCode
@@ -17,11 +21,8 @@ from app.schemas.outreach import (
     OutreachResponse,
     OutreachListResponse,
     MessageTemplateCreate,
-    MessageTemplateUpdate,
     MessageTemplateResponse,
-    SendMessageRequest,
     OutreachStatsResponse,
-    BulkContactRequest
 )
 
 router = APIRouter(prefix="/admin/outreach", tags=["outreach-crm"])
@@ -29,17 +30,17 @@ router = APIRouter(prefix="/admin/outreach", tags=["outreach-crm"])
 
 @router.get("/stats", response_model=OutreachStatsResponse)
 async def get_outreach_stats(
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get overall outreach statistics"""
-    
+
     # Total entities
     total_institutions = await db.execute(select(func.count(Institution.id)))
     total_scholarships = await db.execute(select(func.count(Scholarship.id)))
-    
+
     total_entities = total_institutions.scalar() + total_scholarships.scalar()
-    
+
     # Contact status counts
     status_counts = {}
     for status in ContactStatus:
@@ -48,34 +49,36 @@ async def get_outreach_stats(
         )
         result = await db.execute(query)
         status_counts[status.value] = result.scalar()
-    
+
     # Calculate not contacted
     contacted_count = await db.execute(select(func.count(OutreachTracking.id)))
     not_contacted = total_entities - contacted_count.scalar()
-    
+
     # Conversion rate
-    registered = status_counts.get('registered', 0)
+    registered = status_counts.get("registered", 0)
     contacted = sum(status_counts.values())
     conversion_rate = (registered / contacted * 100) if contacted > 0 else 0
-    
+
     # Pending follow-ups
     pending_followups = await db.execute(
         select(func.count(OutreachTracking.id)).where(
             OutreachTracking.next_follow_up_date <= datetime.utcnow(),
-            OutreachTracking.status.in_([ContactStatus.CONTACTED, ContactStatus.FOLLOW_UP_SENT])
+            OutreachTracking.status.in_(
+                [ContactStatus.CONTACTED, ContactStatus.FOLLOW_UP_SENT]
+            ),
         )
     )
-    
+
     return {
         "total_entities": total_entities,
         "not_contacted": not_contacted,
         "contacted": contacted,
         "registered": registered,
-        "declined": status_counts.get('declined', 0),
-        "no_response": status_counts.get('no_response', 0),
+        "declined": status_counts.get("declined", 0),
+        "no_response": status_counts.get("no_response", 0),
         "conversion_rate": round(conversion_rate, 2),
         "pending_followups": pending_followups.scalar(),
-        "status_breakdown": status_counts
+        "status_breakdown": status_counts,
     }
 
 
@@ -87,115 +90,186 @@ async def list_outreach(
     search: Optional[str] = None,
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """List all outreach records with filtering"""
-    
+
     query = select(OutreachTracking)
-    
+
     # Filters
     if status:
         query = query.where(OutreachTracking.status == status)
-    
+
     if entity_type:
         query = query.where(OutreachTracking.entity_type == entity_type)
-    
+
     if needs_followup:
         query = query.where(
             OutreachTracking.next_follow_up_date <= datetime.utcnow(),
-            OutreachTracking.status.in_([ContactStatus.CONTACTED, ContactStatus.FOLLOW_UP_SENT])
+            OutreachTracking.status.in_(
+                [ContactStatus.CONTACTED, ContactStatus.FOLLOW_UP_SENT]
+            ),
         )
-    
+
     if search:
         query = query.where(
             or_(
                 OutreachTracking.contact_name.ilike(f"%{search}%"),
                 OutreachTracking.contact_email.ilike(f"%{search}%"),
-                OutreachTracking.notes.ilike(f"%{search}%")
+                OutreachTracking.notes.ilike(f"%{search}%"),
             )
         )
-    
-    query = query.order_by(OutreachTracking.priority.desc(), OutreachTracking.updated_at.desc())
+
+    query = query.order_by(
+        OutreachTracking.priority.desc(), OutreachTracking.updated_at.desc()
+    )
     query = query.limit(limit).offset(offset)
-    
+
     result = await db.execute(query)
     outreach_records = result.scalars().all()
-    
+
     # Enrich with entity names
     response = []
     for record in outreach_records:
         entity_name = await get_entity_name(db, record.entity_type, record.entity_id)
-        response.append({
-            **record.__dict__,
-            "entity_name": entity_name
-        })
-    
+        response.append({**record.__dict__, "entity_name": entity_name})
+
     return response
 
 
 @router.post("", response_model=OutreachResponse)
 async def create_outreach(
     outreach_data: OutreachCreate,
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create outreach record for an entity"""
-    
-    # Check if already exists
-    query = select(OutreachTracking).where(
-        OutreachTracking.entity_type == outreach_data.entity_type,
-        OutreachTracking.entity_id == outreach_data.entity_id
-    )
-    result = await db.execute(query)
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Outreach record already exists for this entity")
-    
-    # Create record
-    new_outreach = OutreachTracking(
-        entity_type=outreach_data.entity_type,
-        entity_id=outreach_data.entity_id,
-        contact_name=outreach_data.contact_name,
-        contact_title=outreach_data.contact_title,
-        contact_email=outreach_data.contact_email,
-        contact_phone=outreach_data.contact_phone,
-        linkedin_url=outreach_data.linkedin_url,
-        priority=outreach_data.priority or 'normal',
-        notes=outreach_data.notes,
-        created_by=current_user.email
-    )
-    
-    db.add(new_outreach)
-    await db.commit()
-    await db.refresh(new_outreach)
-    
-    return new_outreach
+
+    # Map contact method string to ContactMethod enum
+    method_map = {
+        "email": ContactMethod.EMAIL,
+        "linkedin": ContactMethod.LINKEDIN,
+        "phone": ContactMethod.PHONE,
+        "text": ContactMethod.TEXT,
+        "other": ContactMethod.OTHER,
+    }
+
+    contact_method_str = (outreach_data.contact_method or "email").lower()
+    contact_method = method_map.get(contact_method_str, ContactMethod.EMAIL)
+
+    try:
+        # Check if already exists
+        query = select(OutreachTracking).where(
+            OutreachTracking.entity_type == outreach_data.entity_type,
+            OutreachTracking.entity_id == outreach_data.entity_id,
+        )
+        result = await db.execute(query)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            # Record exists - update it
+            timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+            new_note = f"\n[{timestamp}] {outreach_data.notes or 'Contact attempt'}"
+            existing.notes = (existing.notes or "") + new_note
+            existing.updated_at = datetime.utcnow()
+            existing.status = ContactStatus.CONTACTED
+            existing.last_contact_date = datetime.utcnow()
+            existing.last_contact_method = contact_method
+            existing.contact_attempt_count = (existing.contact_attempt_count or 0) + 1
+
+            await db.commit()
+            await db.refresh(existing)
+            return existing
+
+        # Create new record
+        new_outreach = OutreachTracking(
+            entity_type=outreach_data.entity_type,
+            entity_id=outreach_data.entity_id,
+            contact_name=outreach_data.contact_name,
+            contact_title=outreach_data.contact_title,
+            contact_email=outreach_data.contact_email,
+            contact_phone=outreach_data.contact_phone,
+            linkedin_url=outreach_data.linkedin_url,
+            priority=outreach_data.priority or "normal",
+            notes=outreach_data.notes or "Initial contact",
+            status=ContactStatus.CONTACTED,
+            last_contact_date=datetime.utcnow(),
+            last_contact_method=contact_method,
+            contact_attempt_count=1,
+            created_by=current_user.email,
+            next_follow_up_date=datetime.utcnow() + timedelta(days=7),
+            follow_up_count=0,
+        )
+
+        db.add(new_outreach)
+        await db.commit()
+        await db.refresh(new_outreach)
+
+        return new_outreach
+
+    except Exception as e:
+        await db.rollback()
+        print(f"Error creating outreach: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{outreach_id}", response_model=OutreachResponse)
 async def update_outreach(
     outreach_id: int,
     updates: OutreachUpdate,
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Update outreach record"""
-    
-    query = select(OutreachTracking).where(OutreachTracking.id == outreach_id)
-    result = await db.execute(query)
-    outreach = result.scalar_one_or_none()
-    
-    if not outreach:
-        raise HTTPException(status_code=404, detail="Outreach record not found")
-    
-    # Update fields
-    for field, value in updates.dict(exclude_unset=True).items():
-        setattr(outreach, field, value)
-    
-    await db.commit()
-    await db.refresh(outreach)
-    
-    return outreach
+
+    try:
+        query = select(OutreachTracking).where(OutreachTracking.id == outreach_id)
+        result = await db.execute(query)
+        outreach = result.scalar_one_or_none()
+
+        if not outreach:
+            raise HTTPException(status_code=404, detail="Outreach record not found")
+
+        # Update fields
+        update_data = updates.dict(exclude_unset=True)
+
+        # Handle next_follow_up_date - strip timezone
+        if "next_follow_up_date" in update_data and update_data["next_follow_up_date"]:
+            if isinstance(update_data["next_follow_up_date"], str):
+                # Parse ISO string and strip timezone
+                dt = datetime.fromisoformat(
+                    update_data["next_follow_up_date"].replace("Z", "+00:00")
+                )
+                update_data["next_follow_up_date"] = dt.replace(tzinfo=None)
+            elif hasattr(update_data["next_follow_up_date"], "tzinfo"):
+                # If it's already a datetime object with timezone, strip it
+                update_data["next_follow_up_date"] = update_data[
+                    "next_follow_up_date"
+                ].replace(tzinfo=None)
+
+        for field, value in update_data.items():
+            setattr(outreach, field, value)
+
+        outreach.updated_at = datetime.utcnow()
+
+        await db.commit()
+        await db.refresh(outreach)
+
+        return outreach
+
+    except Exception as e:
+        await db.rollback()
+        print(f"Error updating outreach: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update record: {str(e)}"
+        )
 
 
 # Helper functions
@@ -218,38 +292,38 @@ async def get_or_create_invitation(
     entity_type: str,
     entity_id: int,
     email: Optional[str],
-    created_by: str
+    created_by: str,
 ) -> InvitationCode:
     """Get existing invitation or create new one"""
-    
+
     # Check for existing unused invitation
     query = select(InvitationCode).where(
         InvitationCode.entity_type == entity_type,
         InvitationCode.entity_id == entity_id,
-        InvitationCode.status == 'pending'
+        InvitationCode.status == "pending",
     )
     result = await db.execute(query)
     existing = result.scalar_one_or_none()
-    
+
     if existing:
         return existing
-    
+
     # Create new invitation
     code = InvitationCode.generate_code()
     expires_at = datetime.utcnow() + timedelta(days=30)
-    
+
     new_invitation = InvitationCode(
         code=code,
         entity_type=entity_type,
         entity_id=entity_id,
         assigned_email=email,
         expires_at=expires_at,
-        created_by=created_by
+        created_by=created_by,
     )
-    
+
     db.add(new_invitation)
     await db.flush()
-    
+
     return new_invitation
 
 
@@ -259,32 +333,32 @@ def personalize_message(
     contact_name: Optional[str],
     invitation_code: Optional[str],
     city: Optional[str],
-    state: Optional[str]
+    state: Optional[str],
 ) -> str:
     """Replace tokens with actual values"""
-    
+
     replacements = {
-        '{entity_name}': entity_name or '',
-        '{institution_name}': entity_name or '',
-        '{scholarship_name}': entity_name or '',
-        '{contact_name}': contact_name or 'there',
-        '{invitation_code}': invitation_code or '[CODE WILL BE GENERATED]',
-        '{city}': city or '',
-        '{state}': state or ''
+        "{entity_name}": entity_name or "",
+        "{institution_name}": entity_name or "",
+        "{scholarship_name}": entity_name or "",
+        "{contact_name}": contact_name or "there",
+        "{invitation_code}": invitation_code or "[CODE WILL BE GENERATED]",
+        "{city}": city or "",
+        "{state}": state or "",
     }
-    
+
     result = template
     for token, value in replacements.items():
         result = result.replace(token, value)
-    
+
     return result
 
 
 # MESSAGE TEMPLATES
 @router.get("/templates", response_model=List[MessageTemplateResponse])
 async def list_templates(
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """List all message templates"""
     query = select(MessageTemplate).where(MessageTemplate.is_active == True)
@@ -295,8 +369,8 @@ async def list_templates(
 @router.post("/templates", response_model=MessageTemplateResponse)
 async def create_template(
     template_data: MessageTemplateCreate,
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create new message template"""
     new_template = MessageTemplate(
@@ -304,11 +378,11 @@ async def create_template(
         template_type=template_data.template_type,
         subject=template_data.subject,
         body=template_data.body,
-        created_by=current_user.email
+        created_by=current_user.email,
     )
-    
+
     db.add(new_template)
     await db.commit()
     await db.refresh(new_template)
-    
+
     return new_template

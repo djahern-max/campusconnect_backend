@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict
 from datetime import datetime
 
+
 # Outreach Tracking Schemas
 class OutreachCreate(BaseModel):
     entity_type: str
@@ -11,8 +12,10 @@ class OutreachCreate(BaseModel):
     contact_email: Optional[EmailStr] = None
     contact_phone: Optional[str] = None
     linkedin_url: Optional[str] = None
-    priority: Optional[str] = 'normal'
+    priority: Optional[str] = "normal"
     notes: Optional[str] = None
+    contact_method: Optional[str] = "email"
+
 
 class OutreachUpdate(BaseModel):
     contact_name: Optional[str] = None
@@ -25,6 +28,7 @@ class OutreachUpdate(BaseModel):
     notes: Optional[str] = None
     response_feedback: Optional[str] = None
     next_follow_up_date: Optional[datetime] = None
+
 
 class OutreachResponse(BaseModel):
     id: int
@@ -49,12 +53,14 @@ class OutreachResponse(BaseModel):
     tags: Optional[str]
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
+
 class OutreachListResponse(OutreachResponse):
     entity_name: str
+
 
 # Statistics
 class OutreachStatsResponse(BaseModel):
@@ -68,6 +74,7 @@ class OutreachStatsResponse(BaseModel):
     pending_followups: int
     status_breakdown: Dict[str, int]
 
+
 # Message Templates
 class MessageTemplateCreate(BaseModel):
     name: str
@@ -75,12 +82,14 @@ class MessageTemplateCreate(BaseModel):
     subject: Optional[str] = None
     body: str
 
+
 class MessageTemplateUpdate(BaseModel):
     name: Optional[str] = None
     subject: Optional[str] = None
     body: Optional[str] = None
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
+
 
 class MessageTemplateResponse(BaseModel):
     id: int
@@ -93,9 +102,10 @@ class MessageTemplateResponse(BaseModel):
     is_active: bool
     is_default: bool
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 # Sending Messages
 class SendMessageRequest(BaseModel):
@@ -105,11 +115,13 @@ class SendMessageRequest(BaseModel):
     message: Optional[str] = None
     include_invitation: bool = True
 
+
 class BulkContactRequest(BaseModel):
     outreach_ids: List[int]
     template_id: int
     contact_method: str
     include_invitation: bool = True
+
 
 # Activity Log
 class OutreachActivityResponse(BaseModel):
@@ -122,6 +134,6 @@ class OutreachActivityResponse(BaseModel):
     response_text: Optional[str]
     response_date: Optional[datetime]
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
