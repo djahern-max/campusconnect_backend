@@ -8,6 +8,7 @@ from app.models.outreach_tracking import OutreachTracking
 from app.models.message_templates import MessageTemplate
 from app.models.admission_data import AdmissionData
 from app.models.tuition_data import TuitionData
+from app.models.contact_inquiry import ContactInquiry
 
 __all__ = [
     "Institution",
@@ -18,7 +19,7 @@ __all__ = [
     "InvitationCode",
     "OutreachTracking",
     "MessageTemplate",
-    "OutreachActivity",
     "AdmissionData",
     "TuitionData",
+    "ContactInquiry",
 ]
