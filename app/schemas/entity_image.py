@@ -6,13 +6,15 @@ from datetime import datetime
 
 class EntityImageBase(BaseModel):
     """Base schema for entity images"""
+
     caption: Optional[str] = None
     image_type: Optional[str] = None
 
 
 class EntityImageCreate(EntityImageBase):
     """Schema for creating entity images"""
-    entity_type: Literal['institution', 'scholarship']
+
+    entity_type: Literal["institution", "scholarship"]
     entity_id: int
     image_url: str
     cdn_url: str
@@ -23,6 +25,7 @@ class EntityImageCreate(EntityImageBase):
 
 class EntityImageUpdate(BaseModel):
     """Schema for updating entity images"""
+
     caption: Optional[str] = None
     image_type: Optional[str] = None
     is_featured: Optional[bool] = None
@@ -31,6 +34,7 @@ class EntityImageUpdate(BaseModel):
 
 class EntityImageResponse(EntityImageBase):
     """Schema for entity image responses"""
+
     id: int
     entity_type: str
     entity_id: int
@@ -48,9 +52,18 @@ class EntityImageResponse(EntityImageBase):
 
 class ImageReorderRequest(BaseModel):
     """Schema for reordering images"""
-    image_ids: list[int] = Field(..., description="List of image IDs in desired order")
+
+    image_ids: list[int] = Field(
+        ...,
+        description="List of image IDs in desired display order (first ID will be display_order 0)",
+        min_length=1,
+    )
+
+    class Config:
+        json_schema_extra = {"example": {"image_ids": [5, 3, 7, 4, 6]}}
 
 
 class SetFeaturedImageRequest(BaseModel):
     """Schema for setting featured image"""
+
     image_id: int = Field(..., description="ID of image to set as featured")

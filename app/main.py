@@ -65,23 +65,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # Include routers
-app.include_router(institutions.router, prefix="/api/v1")
-app.include_router(scholarships.router, prefix="/api/v1")
+
+# 1. Authentication & Core Identity
 app.include_router(admin_auth.router, prefix="/api/v1")
-app.include_router(outreach.router, prefix="/api/v1")
 app.include_router(admin_profile.router, prefix="/api/v1")
-app.include_router(admin_images.router, prefix="/api/v1")
-app.include_router(admin_gallery.router, prefix="/api/v1")
-app.include_router(admin_videos.router, prefix="/api/v1")
-app.include_router(admin_extended_info.router, prefix="/api/v1")
-app.include_router(subscriptions.router, prefix="/api/v1")
-app.include_router(webhooks.router, prefix="/api/v1")
+
+# 2. Institution Management
+app.include_router(institutions.router, prefix="/api/v1")
 app.include_router(institutions_data.router, prefix="/api/v1")
 app.include_router(admin_data.router, prefix="/api/v1")
-app.include_router(contact.router, prefix="/api/v1/contact")
+
+# 3. Content Management
+app.include_router(admin_extended_info.router, prefix="/api/v1")
+app.include_router(admin_videos.router, prefix="/api/v1")
+
+# 4. Images & Gallery (Admin + Public)
+app.include_router(admin_images.router, prefix="/api/v1")
+app.include_router(admin_gallery.router, prefix="/api/v1")
 app.include_router(public_gallery.router, prefix="/api/v1/public/gallery")
+
+# 5. Programs & Opportunities
+app.include_router(scholarships.router, prefix="/api/v1")
+
+# 6. Communication & Outreach
+app.include_router(outreach.router, prefix="/api/v1")
+app.include_router(contact.router, prefix="/api/v1/contact")
+
+# 7. Billing & Subscriptions
+app.include_router(subscriptions.router, prefix="/api/v1")
+app.include_router(webhooks.router, prefix="/api/v1")
 
 
 @app.get("/")
