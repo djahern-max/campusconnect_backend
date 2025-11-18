@@ -33,6 +33,7 @@ from app.api.v1 import (
     institutions_data,
     admin_data,
     contact,
+    public_gallery,
 )
 
 app = FastAPI(
@@ -80,6 +81,7 @@ app.include_router(webhooks.router, prefix="/api/v1")
 app.include_router(institutions_data.router, prefix="/api/v1")
 app.include_router(admin_data.router, prefix="/api/v1")
 app.include_router(contact.router, prefix="/api/v1/contact")
+app.include_router(public_gallery.router, prefix="/api/v1/public/gallery")
 
 
 @app.get("/")
