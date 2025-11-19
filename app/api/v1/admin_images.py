@@ -71,11 +71,11 @@ async def list_images(current_user: AdminUser = Depends(get_current_user)):
     """List all images for this entity from DigitalOcean Spaces"""
 
     # Get all campusconnect images
-    all_images = image_service.list_images(prefix="campusconnect")
+    all_images = await image_service.list_images()
 
     # Filter for this entity
     prefix = f"campusconnect/{current_user.entity_type}_{current_user.entity_id}_"
-    entity_images = [img for img in all_images if img["key"].startswith(prefix)]
+    entity_images = [img for img in all_images if img["path"].startswith(prefix)]
 
     # Sort by last modified (newest first)
     entity_images.sort(key=lambda x: x["last_modified"], reverse=True)
