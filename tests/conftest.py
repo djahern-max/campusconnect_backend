@@ -1,6 +1,24 @@
 """
 Test configuration with proper test isolation
 """
+
+# SET THIS FIRST - before any other imports
+import os
+
+# Set testing flag
+os.environ["TESTING"] = "true"
+
+# Explicitly load .env.test file before any app imports
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Get project root (parent of tests directory)
+project_root = Path(__file__).parent.parent
+env_test_path = project_root / ".env.test"
+
+# Load .env.test file
+load_dotenv(env_test_path, override=True)
+
 import pytest
 import asyncio
 from typing import AsyncGenerator
@@ -8,7 +26,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.pool import NullPool
 from httpx import AsyncClient, ASGITransport
 from datetime import datetime, timedelta
-import os
 import secrets
 import random
 
@@ -54,14 +71,14 @@ async def setup_test_database():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)  # Clean start
         await conn.run_sync(Base.metadata.create_all)
-    
+
     print("\n✅ Test database tables created")
-    
+
     yield
-    
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     print("\n🧹 Test database tables dropped")
     await test_engine.dispose()
 
@@ -74,36 +91,38 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     connection = await test_engine.connect()
     transaction = await connection.begin()
-    
+
     async_session = async_sessionmaker(
         bind=connection,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with async_session() as session:
         yield session
         await transaction.rollback()
-    
+
     await connection.close()
 
 
 @pytest.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Test client with database session override"""
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
 # === FIXTURES - Use random IDs to avoid conflicts ===
+
 
 @pytest.fixture
 async def super_admin_user(db_session: AsyncSession) -> AdminUser:
@@ -116,7 +135,7 @@ async def super_admin_user(db_session: AsyncSession) -> AdminUser:
         entity_id=None,
         role="super_admin",
         is_active=True,
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
     db_session.add(super_admin)
     await db_session.flush()
@@ -129,10 +148,7 @@ async def super_admin_token(client: AsyncClient, super_admin_user: AdminUser) ->
     """Get Super Admin JWT token"""
     response = await client.post(
         "/api/v1/admin/auth/login",
-        data={
-            "username": super_admin_user.email,
-            "password": "SuperAdmin123!"
-        }
+        data={"username": super_admin_user.email, "password": "SuperAdmin123!"},
     )
     assert response.status_code == 200
     return response.json()["access_token"]
@@ -156,7 +172,7 @@ async def test_institution(db_session: AsyncSession) -> Institution:
         control_type="PUBLIC",
         student_faculty_ratio=15.0,
         size_category="Medium",
-        locale="City"
+        locale="City",
     )
     db_session.add(institution)
     await db_session.flush()
@@ -176,7 +192,7 @@ async def test_scholarship(db_session: AsyncSession) -> Scholarship:
         amount_min=1000,
         amount_max=5000,
         is_renewable=True,
-        min_gpa=3.0
+        min_gpa=3.0,
     )
     db_session.add(scholarship)
     await db_session.flush()
@@ -186,9 +202,7 @@ async def test_scholarship(db_session: AsyncSession) -> Scholarship:
 
 @pytest.fixture
 async def invitation_code_institution(
-    db_session: AsyncSession,
-    test_institution: Institution,
-    super_admin_user: AdminUser
+    db_session: AsyncSession, test_institution: Institution, super_admin_user: AdminUser
 ) -> InvitationCode:
     """Create invitation code for institution"""
     invitation = InvitationCode(
@@ -199,7 +213,7 @@ async def invitation_code_institution(
         status=InvitationStatus.PENDING,
         expires_at=datetime.utcnow() + timedelta(days=30),
         created_by=super_admin_user.email,
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
     db_session.add(invitation)
     await db_session.flush()
@@ -209,9 +223,7 @@ async def invitation_code_institution(
 
 @pytest.fixture
 async def invitation_code_scholarship(
-    db_session: AsyncSession,
-    test_scholarship: Scholarship,
-    super_admin_user: AdminUser
+    db_session: AsyncSession, test_scholarship: Scholarship, super_admin_user: AdminUser
 ) -> InvitationCode:
     """Create invitation code for scholarship"""
     invitation = InvitationCode(
@@ -222,7 +234,7 @@ async def invitation_code_scholarship(
         status=InvitationStatus.PENDING,
         expires_at=datetime.utcnow() + timedelta(days=30),
         created_by=super_admin_user.email,
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
     db_session.add(invitation)
     await db_session.flush()
@@ -232,29 +244,24 @@ async def invitation_code_scholarship(
 
 @pytest.fixture
 async def registered_admin_user(
-    client: AsyncClient,
-    invitation_code_institution: InvitationCode
+    client: AsyncClient, invitation_code_institution: InvitationCode
 ) -> dict:
     """Register an admin user and return credentials"""
     email = invitation_code_institution.assigned_email
     password = "TestPassword123!"
-    
+
     response = await client.post(
         "/api/v1/admin/auth/register",
         json={
             "email": email,
             "password": password,
-            "invitation_code": invitation_code_institution.code
-        }
+            "invitation_code": invitation_code_institution.code,
+        },
     )
-    
+
     assert response.status_code == 200
-    
-    return {
-        "email": email,
-        "password": password,
-        "user_data": response.json()
-    }
+
+    return {"email": email, "password": password, "user_data": response.json()}
 
 
 @pytest.fixture
@@ -264,8 +271,8 @@ async def admin_token(client: AsyncClient, registered_admin_user: dict) -> str:
         "/api/v1/admin/auth/login",
         data={
             "username": registered_admin_user["email"],
-            "password": registered_admin_user["password"]
-        }
+            "password": registered_admin_user["password"],
+        },
     )
     assert response.status_code == 200
     return response.json()["access_token"]
@@ -279,15 +286,16 @@ def admin_headers(admin_token: str) -> dict:
 
 # === IMAGE TESTING FIXTURES ===
 
+
 @pytest.fixture
 def sample_image_bytes() -> bytes:
     """Create a simple test image in memory"""
     from PIL import Image
     import io
-    
-    img = Image.new('RGB', (800, 600), color='#2563eb')
+
+    img = Image.new("RGB", (800, 600), color="#2563eb")
     img_bytes = io.BytesIO()
-    img.save(img_bytes, format='JPEG')
+    img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
     return img_bytes.read()
 
