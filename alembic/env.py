@@ -17,6 +17,31 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+
+def include_object(object, name, type_, reflected, compare_to):
+    """
+    Exclude tables managed by MagicScholar from CampusConnect migrations.
+    CampusConnect should NEVER create migrations for these tables.
+    """
+    if type_ == "table":
+        # Tables managed by MagicScholar - DON'T migrate
+        magicscholar_tables = {
+            "users",
+            "user_profiles",
+            "oauth_accounts",
+            "oauth_states",
+            "college_applications",
+            "scholarship_applications",
+            "enrollment_data",
+            "graduation_data",
+        }
+
+        if name in magicscholar_tables:
+            return False  # Don't include in auto-generated migrations
+
+    return True
+
+
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -24,10 +49,12 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online() -> None:
     connectable = engine_from_config(
@@ -38,11 +65,15 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,  # ADD THIS
+            compare_type=True,
         )
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

@@ -6,7 +6,7 @@ Uses the entity_images table to support multiple entity types.
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_, func
-from typing import List, Optional
+from typing import List, Optional, Dict
 from app.core.database import get_db
 from app.api.v1.admin_auth import get_current_user
 from app.models.admin_user import AdminUser
@@ -21,6 +21,115 @@ from app.schemas.entity_image import (
 from app.services.image_service import image_service
 
 router = APIRouter(prefix="/admin/gallery", tags=["admin-gallery"])
+
+
+@router.put("/reorder")
+async def reorder_gallery_images(
+    reorder: ImageReorderRequest,
+    current_user: AdminUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reorder gallery images"""
+    # Update display order for each image
+    for index, image_id in enumerate(reorder.image_ids):
+        stmt = (
+            update(EntityImage)
+            .where(
+                and_(
+                    EntityImage.id == image_id,
+                    EntityImage.entity_type == current_user.entity_type,
+                    EntityImage.entity_id == current_user.entity_id,
+                )
+            )
+            .values(display_order=index)
+        )
+
+        await db.execute(stmt)
+
+    await db.commit()
+
+    return {"message": "Images reordered successfully"}
+
+
+@router.post("/set-featured")
+async def set_featured_image(
+    request: SetFeaturedImageRequest,
+    current_user: AdminUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set an image as the featured/primary image"""
+    # First, unset all featured images for this entity
+    await db.execute(
+        update(EntityImage)
+        .where(
+            and_(
+                EntityImage.entity_type == current_user.entity_type,
+                EntityImage.entity_id == current_user.entity_id,
+            )
+        )
+        .values(is_featured=False)
+    )
+
+    # Set the requested image as featured
+    result = await db.execute(
+        select(EntityImage).where(
+            and_(
+                EntityImage.id == request.image_id,
+                EntityImage.entity_type == current_user.entity_type,
+                EntityImage.entity_id == current_user.entity_id,
+            )
+        )
+    )
+    image = result.scalar_one_or_none()
+
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    image.is_featured = True
+
+    # Also update the primary_image_url in institutions/scholarships table
+    if current_user.entity_type == "institution":
+        from app.models.institution import Institution
+
+        inst_result = await db.execute(
+            select(Institution).where(Institution.id == current_user.entity_id)
+        )
+        institution = inst_result.scalar_one_or_none()
+        if institution:
+            institution.primary_image_url = image.cdn_url
+    elif current_user.entity_type == "scholarship":
+        from app.models.scholarship import Scholarship
+
+        schol_result = await db.execute(
+            select(Scholarship).where(Scholarship.id == current_user.entity_id)
+        )
+        scholarship = schol_result.scalar_one_or_none()
+        if scholarship:
+            scholarship.primary_image_url = image.cdn_url
+
+    await db.commit()
+    await db.refresh(image)
+
+    return {"message": "Featured image updated successfully", "image": image}
+
+
+@router.get("/featured", response_model=Optional[EntityImageResponse])
+async def get_featured_image(
+    current_user: AdminUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the featured/primary image for this entity"""
+    query = select(EntityImage).where(
+        and_(
+            EntityImage.entity_type == current_user.entity_type,
+            EntityImage.entity_id == current_user.entity_id,
+            EntityImage.is_featured == True,
+        )
+    )
+    result = await db.execute(query)
+    image = result.scalar_one_or_none()
+
+    return image
 
 
 @router.get("", response_model=List[EntityImageResponse])
@@ -179,112 +288,3 @@ async def delete_gallery_image(
     await db.commit()
 
     return {"message": "Image deleted successfully"}
-
-
-@router.put("/reorder")
-async def reorder_gallery_images(
-    reorder: ImageReorderRequest,
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Reorder gallery images"""
-    # Update display order for each image
-    for index, image_id in enumerate(reorder.image_ids):
-        stmt = (
-            update(EntityImage)
-            .where(
-                and_(
-                    EntityImage.id == image_id,
-                    EntityImage.entity_type == current_user.entity_type,
-                    EntityImage.entity_id == current_user.entity_id,
-                )
-            )
-            .values(display_order=index)
-        )
-
-        await db.execute(stmt)
-
-    await db.commit()
-
-    return {"message": "Images reordered successfully"}
-
-
-@router.post("/set-featured")
-async def set_featured_image(
-    request: SetFeaturedImageRequest,
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Set an image as the featured/primary image"""
-    # First, unset all featured images for this entity
-    await db.execute(
-        update(EntityImage)
-        .where(
-            and_(
-                EntityImage.entity_type == current_user.entity_type,
-                EntityImage.entity_id == current_user.entity_id,
-            )
-        )
-        .values(is_featured=False)
-    )
-
-    # Set the requested image as featured
-    result = await db.execute(
-        select(EntityImage).where(
-            and_(
-                EntityImage.id == request.image_id,
-                EntityImage.entity_type == current_user.entity_type,
-                EntityImage.entity_id == current_user.entity_id,
-            )
-        )
-    )
-    image = result.scalar_one_or_none()
-
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
-
-    image.is_featured = True
-
-    # Also update the primary_image_url in institutions/scholarships table
-    if current_user.entity_type == "institution":
-        from app.models.institution import Institution
-
-        inst_result = await db.execute(
-            select(Institution).where(Institution.id == current_user.entity_id)
-        )
-        institution = inst_result.scalar_one_or_none()
-        if institution:
-            institution.primary_image_url = image.cdn_url
-    elif current_user.entity_type == "scholarship":
-        from app.models.scholarship import Scholarship
-
-        schol_result = await db.execute(
-            select(Scholarship).where(Scholarship.id == current_user.entity_id)
-        )
-        scholarship = schol_result.scalar_one_or_none()
-        if scholarship:
-            scholarship.primary_image_url = image.cdn_url
-
-    await db.commit()
-    await db.refresh(image)
-
-    return {"message": "Featured image updated successfully", "image": image}
-
-
-@router.get("/featured", response_model=Optional[EntityImageResponse])
-async def get_featured_image(
-    current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get the featured/primary image for this entity"""
-    query = select(EntityImage).where(
-        and_(
-            EntityImage.entity_type == current_user.entity_type,
-            EntityImage.entity_id == current_user.entity_id,
-            EntityImage.is_featured == True,
-        )
-    )
-    result = await db.execute(query)
-    image = result.scalar_one_or_none()
-
-    return image
