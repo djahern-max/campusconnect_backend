@@ -18,15 +18,40 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """Handle Stripe webhook events"""
 
     payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
 
-    # Parse the event
-    try:
-        event = json.loads(payload)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid payload")
+    # Validate signature if webhook secret is configured
+    if hasattr(settings, "STRIPE_WEBHOOK_SECRET") and settings.STRIPE_WEBHOOK_SECRET:
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+            )
+        except ValueError as e:
+            # Invalid payload
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        except stripe.error.SignatureVerificationError as e:
+            # Invalid signature
+            raise HTTPException(status_code=403, detail="Invalid signature")
+    else:
+        # For testing without signature validation
+        try:
+            event = json.loads(payload)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    # Validate event structure
+    if not event or "type" not in event:
+        raise HTTPException(status_code=400, detail="Invalid event structure")
 
     # Handle the event
-    event_type = event["type"]
+    event_type = event.get("type")
+
+    # Check if data exists in event
+    if "data" not in event or "object" not in event.get("data", {}):
+        # For unknown event types or malformed events, return success to avoid retries
+        print(f"⚠️ Event missing data: {event_type}")
+        return {"status": "success", "message": "Event received but missing data"}
+
     data = event["data"]["object"]
 
     print(f"📥 Received Stripe event: {event_type}")
@@ -51,6 +76,10 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     elif event_type == "customer.subscription.deleted":
         await handle_subscription_deleted(data, db)
 
+    # For unknown event types, just acknowledge receipt
+    else:
+        print(f"ℹ️ Unhandled event type: {event_type}")
+
     return {"status": "success"}
 
 
@@ -60,11 +89,9 @@ async def handle_subscription_created(data: dict, db: AsyncSession):
     customer_id = data["customer"]
     status = data["status"]
 
-    # ✅ Get entity_type from metadata
+    # Get entity_type from metadata
     entity_id = int(data["metadata"].get("entity_id", 0))
-    entity_type = data["metadata"].get(
-        "entity_type", "institution"
-    )  # ✅ NEW: Get entity_type
+    entity_type = data["metadata"].get("entity_type", "institution")
 
     trial_end = data.get("trial_end")
     current_period_start = data["current_period_start"]
@@ -74,7 +101,7 @@ async def handle_subscription_created(data: dict, db: AsyncSession):
 
     # Check if subscription already exists
     query = select(Subscription).where(
-        Subscription.entity_type == entity_type,  # ✅ Use entity_type from metadata
+        Subscription.entity_type == entity_type,
         Subscription.entity_id == entity_id,
     )
     result = await db.execute(query)
@@ -95,7 +122,7 @@ async def handle_subscription_created(data: dict, db: AsyncSession):
     else:
         # Create new subscription
         new_subscription = Subscription(
-            entity_type=entity_type,  # ✅ Use entity_type from metadata
+            entity_type=entity_type,
             entity_id=entity_id,
             stripe_subscription_id=subscription_id,
             stripe_customer_id=customer_id,
@@ -162,8 +189,6 @@ async def handle_subscription_updated(data: dict, db: AsyncSession):
     """Handle subscription updates (status changes, etc.)"""
     subscription_id = data["id"]
     status = data["status"]
-    cancel_at_period_end = data.get("cancel_at_period_end", False)
-    current_period_end = data["current_period_end"]
 
     print(f"🔄 Subscription updated: {subscription_id} -> {status}")
 
@@ -176,15 +201,14 @@ async def handle_subscription_updated(data: dict, db: AsyncSession):
 
     if subscription:
         subscription.status = status
-        subscription.cancel_at_period_end = cancel_at_period_end
-        subscription.current_period_end = datetime.fromtimestamp(current_period_end)
+        subscription.cancel_at_period_end = data.get("cancel_at_period_end", False)
         subscription.updated_at = datetime.utcnow()
         await db.commit()
         print(f"✅ Subscription updated in database")
 
 
 async def handle_subscription_deleted(data: dict, db: AsyncSession):
-    """Handle subscription cancellation/deletion"""
+    """Handle subscription deletion/cancellation"""
     subscription_id = data["id"]
 
     print(f"🗑️ Subscription deleted: {subscription_id}")
@@ -198,7 +222,6 @@ async def handle_subscription_deleted(data: dict, db: AsyncSession):
 
     if subscription:
         subscription.status = "canceled"
-        subscription.plan_tier = "free"
         subscription.updated_at = datetime.utcnow()
         await db.commit()
-        print(f"✅ Subscription canceled in database")
+        print(f"✅ Subscription marked as canceled")

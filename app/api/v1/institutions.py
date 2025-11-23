@@ -1,3 +1,4 @@
+# app/api/v1/scholarships.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -16,20 +17,16 @@ async def get_institutions(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all institutions with optional state filter"""
+    """
+    Get all institutions with optional state filter.
+    PUBLIC endpoint - no authentication required.
+    """
     query = select(Institution)
 
     if state:
         query = query.where(Institution.state == state.upper())
 
-    # Priority states first (NH, MA, VT, NY, FL, CA), then alphabetical
-    priority_states = ["NH", "MA", "VT", "NY", "FL", "CA"]
-    if not state:
-        # Custom sort: priority states first, then alphabetical
-        query = query.order_by(Institution.state, Institution.name)
-    else:
-        query = query.order_by(Institution.name)
-
+    query = query.order_by(Institution.state, Institution.name)
     query = query.limit(limit).offset(offset)
 
     result = await db.execute(query)
@@ -40,7 +37,10 @@ async def get_institutions(
 
 @router.get("/{ipeds_id}", response_model=InstitutionResponse)
 async def get_institution(ipeds_id: int, db: AsyncSession = Depends(get_db)):
-    """Get a single institution by IPEDS ID"""
+    """
+    Get a single institution by IPEDS ID.
+    PUBLIC endpoint - no authentication required.
+    """
     query = select(Institution).where(Institution.ipeds_id == ipeds_id)
     result = await db.execute(query)
     institution = result.scalar_one_or_none()
@@ -55,7 +55,10 @@ async def get_institution(ipeds_id: int, db: AsyncSession = Depends(get_db)):
 async def get_institution_by_id(
     institution_id: int, db: AsyncSession = Depends(get_db)
 ):
-    """Get a single institution by database ID"""
+    """
+    Get a single institution by database ID.
+    PUBLIC endpoint - no authentication required.
+    """
     query = select(Institution).where(Institution.id == institution_id)
     result = await db.execute(query)
     institution = result.scalar_one_or_none()
