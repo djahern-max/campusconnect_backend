@@ -20,9 +20,7 @@ from app.core.security import get_password_hash  # USE THE REAL ONE
 import secrets
 
 # Database URL
-DATABASE_URL = (
-    "postgresql+asyncpg://postgres:your_password@localhost:5432/campusconnect_db"
-)
+DATABASE_URL = "postgresql+asyncpg://postgres:your_password@localhost:5432/unified_db"
 
 
 async def create_super_admin(session: AsyncSession, email: str, password: str):
