@@ -1,3 +1,4 @@
+# app/models/invitation_code.py
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum as SQLEnum
 from sqlalchemy.sql import func
 from app.core.database import Base

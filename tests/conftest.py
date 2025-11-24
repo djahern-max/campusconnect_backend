@@ -11,6 +11,7 @@ os.environ["TESTING"] = "true"
 # Explicitly load .env.test file before any app imports
 from dotenv import load_dotenv
 from pathlib import Path
+from sqlalchemy import text
 
 # Get project root (parent of tests directory)
 project_root = Path(__file__).parent.parent
@@ -45,7 +46,7 @@ if not TEST_DATABASE_URL:
     base_url = settings.DATABASE_URL
     if "postgresql://" in base_url and "asyncpg" not in base_url:
         base_url = base_url.replace("postgresql://", "postgresql+asyncpg://")
-    TEST_DATABASE_URL = base_url.replace("campusconnect_db", "campusconnect_test")
+    TEST_DATABASE_URL = base_url.replace("campusconnect_db", "unified_test")
 
 print(f"\n🔧 Test Database URL: {TEST_DATABASE_URL.split('@')[0]}@...")
 
@@ -67,19 +68,19 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_test_database():
-    """Create/drop test database tables"""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)  # Clean start
-        await conn.run_sync(Base.metadata.create_all)
+    """
+    Since unified_test was created from unified_db template,
+    it already has all tables. Just verify connection.
+    """
+    print("\n🔧 Verifying test database connection...")
 
-    print("\n✅ Test database tables created")
+    async with test_engine.connect() as conn:
+        result = await conn.execute(text("SELECT 1"))
+        print("✅ Test database connection verified")
 
     yield
 
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-    print("\n🧹 Test database tables dropped")
+    print("\n🧹 Test session complete")
     await test_engine.dispose()
 
 

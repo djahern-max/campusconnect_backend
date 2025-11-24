@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "CampusConnect API",
-    "description": "B2B SaaS platform for institutions and scholarships",
+    "title": "aBaCaDaBa API",
+    "description": "A Scholarship and School API",
     "version": "1.0.0"
   },
   "paths": {
