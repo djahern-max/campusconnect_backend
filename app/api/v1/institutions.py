@@ -1,7 +1,7 @@
-# app/api/v1/scholarships.py
+# app/api/v1/institutions.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, case
 from typing import List, Optional
 from app.core.database import get_db
 from app.models.institution import Institution
@@ -19,14 +19,25 @@ async def get_institutions(
 ):
     """
     Get all institutions with optional state filter.
+    Priority states (NH, MA, CA) are shown first when no filter is applied.
     PUBLIC endpoint - no authentication required.
     """
     query = select(Institution)
 
     if state:
         query = query.where(Institution.state == state.upper())
+        # When filtering by state, just sort by name
+        query = query.order_by(Institution.name)
+    else:
+        # No filter - prioritize NH, MA, CA first, then alphabetical
+        priority_order = case(
+            (Institution.state == "NH", 1),
+            (Institution.state == "MA", 2),
+            (Institution.state == "CA", 3),
+            else_=4,
+        )
+        query = query.order_by(priority_order, Institution.state, Institution.name)
 
-    query = query.order_by(Institution.state, Institution.name)
     query = query.limit(limit).offset(offset)
 
     result = await db.execute(query)
