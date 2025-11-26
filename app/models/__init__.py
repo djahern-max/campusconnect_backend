@@ -9,6 +9,9 @@ from app.models.message_templates import MessageTemplate
 from app.models.admission_data import AdmissionData
 from app.models.tuition_data import TuitionData
 from app.models.contact_inquiry import ContactInquiry
+from app.models.institution_data_verifications import (
+    InstitutionDataVerification,
+)
 
 __all__ = [
     "Institution",
@@ -22,4 +25,5 @@ __all__ = [
     "AdmissionData",
     "TuitionData",
     "ContactInquiry",
+    "InstitutionDataVerification",
 ]

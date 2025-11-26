@@ -317,3 +317,52 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "gallery: Gallery management tests")
     config.addinivalue_line("markers", "invitation: Invitation code tests")
     config.addinivalue_line("markers", "super_admin: Super admin only tests")
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def setup_test_database():
+    """
+    Clear test database data before tests.
+    Schema should match unified_db (create manually if needed).
+    """
+    print("\n🔧 Setting up test database...")
+
+    # Clear all data from test database (keep schema)
+    print("🧹 Clearing test data while preserving schema...")
+
+    async with test_engine.connect() as conn:
+        # Get all table names
+        result = await conn.execute(
+            text(
+                """
+            SELECT tablename FROM pg_tables 
+            WHERE schemaname = 'public' 
+            AND tablename NOT LIKE 'alembic_version%'
+        """
+            )
+        )
+        tables = [row[0] for row in result]
+
+        # Truncate all tables (except alembic version tracking)
+        if tables:
+            tables_str = ", ".join(tables)
+            await conn.execute(
+                text(f"TRUNCATE TABLE {tables_str} RESTART IDENTITY CASCADE")
+            )
+            await conn.commit()
+            print(f"✅ Cleared {len(tables)} tables")
+
+    # Verify connection
+    async with test_engine.connect() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+            )
+        )
+        table_count = result.scalar()
+        print(f"✅ Test database has {table_count} tables")
+
+    yield
+
+    print("\n🧹 Test session complete")
+    await test_engine.dispose()

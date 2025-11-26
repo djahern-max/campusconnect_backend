@@ -34,6 +34,9 @@ from app.api.v1 import (
     admin_data,
     contact,
     public_gallery,
+    admin_institutions,  # Super admin institution management
+    admin_scholarship,  # Super admin scholarship management
+    admin_institution_data,  # Institution admin self-service (NEW)
 )
 
 app = FastAPI(
@@ -95,6 +98,12 @@ app.include_router(contact.router, prefix="/api/v1/contact")
 # 7. Billing & Subscriptions
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
+
+# 8. Admin Institution & Scholarship Management
+
+app.include_router(admin_institutions.router, prefix="/api/v1/admin")
+app.include_router(admin_scholarship.router, prefix="/api/v1/admin")
+app.include_router(admin_institution_data.router, prefix="/api/v1/admin")
 
 
 @app.get("/")
