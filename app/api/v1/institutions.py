@@ -12,40 +12,29 @@ router = APIRouter(prefix="/institutions", tags=["institutions"])
 
 
 # ============================================================================
-# EXISTING ENDPOINTS (UNCHANGED - 100% BACKWARD COMPATIBLE)
+# MAIN ENDPOINTS
 # ============================================================================
 
 
 @router.get("", response_model=List[InstitutionResponse])
 async def get_institutions(
     state: Optional[str] = Query(None, max_length=2),
-    limit: int = Query(100, le=500),
+    limit: int = Query(100, le=10000),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Get all institutions with optional state filter.
-    Priority states (NH, MA, CA) are shown first when no filter is applied.
+    Sorted by data completeness score (best schools with best images first).
     PUBLIC endpoint - no authentication required.
-
-    BACKWARD COMPATIBLE: Returns all institutions regardless of completeness score.
-    Use /institutions/search for filtered results.
     """
     query = select(Institution)
 
     if state:
         query = query.where(Institution.state == state.upper())
-        # When filtering by state, just sort by name
-        query = query.order_by(Institution.name)
-    else:
-        # No filter - prioritize NH, MA, CA first, then alphabetical
-        priority_order = case(
-            (Institution.state == "NH", 1),
-            (Institution.state == "MA", 2),
-            (Institution.state == "CA", 3),
-            else_=4,
-        )
-        query = query.order_by(priority_order, Institution.state, Institution.name)
+
+    # Sort by data completeness score (best schools first), then name
+    query = query.order_by(Institution.data_completeness_score.desc(), Institution.name)
 
     query = query.limit(limit).offset(offset)
 
@@ -90,7 +79,7 @@ async def get_institution_by_id(
 
 
 # ============================================================================
-# NEW ENDPOINTS (IPEDS INTEGRATION)
+# ADVANCED SEARCH ENDPOINTS (IPEDS INTEGRATION)
 # ============================================================================
 
 
@@ -130,17 +119,13 @@ async def search_institutions_filtered(
         None, ge=0, le=100, description="Maximum acceptance rate"
     ),
     # Pagination
-    limit: int = Query(100, le=500),
+    limit: int = Query(100, le=10000),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Advanced search with IPEDS data filtering.
-
-    This endpoint filters by data quality and returns only institutions
-    that meet your criteria. For backward compatibility, use the main
-    /institutions endpoint which returns all institutions.
-
+    Sorted by data completeness score (best schools first).
     PUBLIC endpoint - no authentication required.
     """
     query = select(Institution)
@@ -226,7 +211,6 @@ async def get_completeness_statistics(db: AsyncSession = Depends(get_db)):
     """
     Get distribution of data completeness scores across all institutions.
     Shows how many institutions fall into each quality tier.
-
     PUBLIC endpoint - no authentication required.
     """
     # Get tier distribution
@@ -287,7 +271,6 @@ async def get_featured_institutions(
     """
     Get featured institutions (manually curated).
     Only returns institutions with good data quality (70+ completeness).
-
     PUBLIC endpoint - no authentication required.
     """
     query = (
@@ -316,7 +299,6 @@ async def get_state_summary(
 ):
     """
     Get summary statistics for institutions in a specific state.
-
     PUBLIC endpoint - no authentication required.
     """
     state = state.upper()
@@ -406,8 +388,6 @@ async def test_ipeds_fields(ipeds_id: int, db: AsyncSession = Depends(get_db)):
     """
     Test endpoint to verify IPEDS fields are populated correctly.
     Shows all IPEDS fields for a specific institution.
-
-    Use this to verify migration worked and data import was successful.
     """
     query = select(Institution).where(Institution.ipeds_id == ipeds_id)
     result = await db.execute(query)
