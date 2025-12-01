@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, case, func, and_, or_
 from typing import List, Optional
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.institution import Institution
 from app.schemas.institution import InstitutionResponse, InstitutionSummary
@@ -12,36 +13,74 @@ router = APIRouter(prefix="/institutions", tags=["institutions"])
 
 
 # ============================================================================
+# PAGINATION RESPONSE MODEL
+# ============================================================================
+
+
+class PaginatedInstitutionResponse(BaseModel):
+    """Paginated response for institutions list"""
+
+    institutions: List[InstitutionResponse]
+    total: int
+    page: int
+    limit: int
+    has_more: bool
+
+
+# ============================================================================
 # MAIN ENDPOINTS
 # ============================================================================
 
 
-@router.get("", response_model=List[InstitutionResponse])
+@router.get("", response_model=PaginatedInstitutionResponse)
 async def get_institutions(
     state: Optional[str] = Query(None, max_length=2),
-    limit: int = Query(100, le=10000),
-    offset: int = Query(0, ge=0),
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    limit: int = Query(100, ge=1, le=500, description="Items per page (max 500)"),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get all institutions with optional state filter.
+    Get all institutions with optional state filter and pagination.
     Sorted by data completeness score (best schools with best images first).
     PUBLIC endpoint - no authentication required.
-    """
-    query = select(Institution)
 
+    Returns paginated response with metadata for efficient loading.
+    """
+    # Build base query
+    query = select(Institution)
+    count_query = select(func.count(Institution.id))
+
+    # Apply state filter to both queries
     if state:
-        query = query.where(Institution.state == state.upper())
+        state_upper = state.upper()
+        query = query.where(Institution.state == state_upper)
+        count_query = count_query.where(Institution.state == state_upper)
+
+    # Get total count
+    total_result = await db.execute(count_query)
+    total = total_result.scalar()
 
     # Sort by data completeness score (best schools first), then name
     query = query.order_by(Institution.data_completeness_score.desc(), Institution.name)
 
+    # Apply pagination
+    offset = (page - 1) * limit
     query = query.limit(limit).offset(offset)
 
+    # Execute query
     result = await db.execute(query)
     institutions = result.scalars().all()
 
-    return institutions
+    # Calculate if there are more pages
+    has_more = (offset + len(institutions)) < total
+
+    return PaginatedInstitutionResponse(
+        institutions=institutions,
+        total=total,
+        page=page,
+        limit=limit,
+        has_more=has_more,
+    )
 
 
 @router.get("/{ipeds_id}", response_model=InstitutionResponse)
