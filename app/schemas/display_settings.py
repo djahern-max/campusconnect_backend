@@ -1,5 +1,7 @@
+# app/schemas/display_settings.pyå
 from pydantic import BaseModel
 from typing import Optional
+
 
 class DisplaySettingsUpdate(BaseModel):
     show_stats: Optional[bool] = None
@@ -13,6 +15,7 @@ class DisplaySettingsUpdate(BaseModel):
     extended_description: Optional[str] = None
     layout_style: Optional[str] = None
     primary_color: Optional[str] = None
+
 
 class DisplaySettingsResponse(BaseModel):
     id: int
@@ -29,6 +32,6 @@ class DisplaySettingsResponse(BaseModel):
     extended_description: Optional[str]
     layout_style: str
     primary_color: Optional[str]
-    
+
     class Config:
         from_attributes = True

@@ -11,10 +11,11 @@ from app.schemas.display_settings import DisplaySettingsUpdate, DisplaySettingsR
 
 router = APIRouter(prefix="/admin/profile", tags=["admin-profile"])
 
+
 @router.get("/entity")
 async def get_my_entity(
     current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Get the institution or scholarship this admin manages"""
     if current_user.entity_type == "institution":
@@ -25,52 +26,69 @@ async def get_my_entity(
         query = select(Scholarship).where(Scholarship.id == current_user.entity_id)
         result = await db.execute(query)
         entity = result.scalar_one_or_none()
-    
+
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
-    
+
     return entity
+
 
 @router.get("/display-settings", response_model=DisplaySettingsResponse)
 async def get_display_settings(
     current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get display settings for my entity"""
+    """Get display settings for my entity - auto-creates if missing"""
     query = select(DisplaySettings).where(
         DisplaySettings.entity_type == current_user.entity_type,
-        DisplaySettings.entity_id == current_user.entity_id
+        DisplaySettings.entity_id == current_user.entity_id,
     )
     result = await db.execute(query)
     settings = result.scalar_one_or_none()
-    
+
+    # Auto-create default settings if they don't exist
     if not settings:
-        raise HTTPException(status_code=404, detail="Display settings not found")
-    
+        settings = DisplaySettings(
+            entity_type=current_user.entity_type,
+            entity_id=current_user.entity_id,
+            show_stats=True,
+            show_financial=True,
+            show_requirements=True,
+            show_image_gallery=False,
+            show_video=False,
+            show_extended_info=False,
+            layout_style="standard",
+            primary_color="#6B21A8",
+        )
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
+
     return settings
+
 
 @router.put("/display-settings", response_model=DisplaySettingsResponse)
 async def update_display_settings(
     updates: DisplaySettingsUpdate,
     current_user: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Update display settings for my entity"""
     query = select(DisplaySettings).where(
         DisplaySettings.entity_type == current_user.entity_type,
-        DisplaySettings.entity_id == current_user.entity_id
+        DisplaySettings.entity_id == current_user.entity_id,
     )
     result = await db.execute(query)
     settings = result.scalar_one_or_none()
-    
+
     if not settings:
         raise HTTPException(status_code=404, detail="Display settings not found")
-    
+
     # Update only provided fields
     for field, value in updates.dict(exclude_unset=True).items():
         setattr(settings, field, value)
-    
+
     await db.commit()
     await db.refresh(settings)
-    
+
     return settings
