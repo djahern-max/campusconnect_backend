@@ -6,7 +6,11 @@ from typing import List, Optional
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.institution import Institution
-from app.schemas.institution import InstitutionResponse, InstitutionSummary
+from app.schemas.institution import (
+    InstitutionResponse,
+    InstitutionSummary,
+    InstitutionBasicResponse,
+)
 
 
 router = APIRouter(prefix="/institutions", tags=["institutions"])
@@ -81,6 +85,29 @@ async def get_institutions(
         limit=limit,
         has_more=has_more,
     )
+
+
+# Admin Endpoint
+
+
+@router.get("/search", response_model=List[InstitutionBasicResponse])
+async def search_institutions(
+    q: str = Query(..., min_length=1), db: AsyncSession = Depends(get_db)
+):
+    """
+    Quick lookup for institutions by name (for admin UI / invitation creation).
+    Returns up to 50 matches.
+    """
+    query = (
+        select(Institution)
+        .where(Institution.name.ilike(f"%{q}%"))
+        .order_by(Institution.name)
+        .limit(50)
+    )
+
+    result = await db.execute(query)
+    institutions = result.scalars().all()
+    return institutions
 
 
 @router.get("/{ipeds_id}", response_model=InstitutionResponse)

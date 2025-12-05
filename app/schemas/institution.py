@@ -326,3 +326,12 @@ class CompletenessBreakdown(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class InstitutionBasicResponse(BaseModel):
+    id: int
+    ipeds_id: int  # ADD THIS LINE
+    name: str
+
+    class Config:
+        orm_mode = True
