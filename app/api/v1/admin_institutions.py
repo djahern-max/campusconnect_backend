@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 # You'll need to implement this dependency based on your auth system
 # from app.api.deps import get_current_admin_user
 
-router = APIRouter(prefix="/admin/institutions", tags=["admin-institutions"])
+router = APIRouter(prefix="/institutions", tags=["admin-institutions"])
 
 
 # ============================================================================

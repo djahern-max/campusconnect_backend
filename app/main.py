@@ -28,15 +28,15 @@ from app.api.v1 import (
     admin_gallery,
     admin_videos,
     admin_extended_info,
+    admin_institutions,
     subscriptions,
     webhooks,
     institutions_data,
     admin_data,
     contact,
     public_gallery,
-    admin_institutions,  # Super admin institution management
-    admin_scholarship,  # Super admin scholarship management
-    admin_institution_data,  # Institution admin self-service (NEW)
+    admin_scholarship,
+    admin_institution_data,
 )
 
 app = FastAPI(
