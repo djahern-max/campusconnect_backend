@@ -11,6 +11,7 @@ from app.schemas.institution import (
     InstitutionSummary,
     InstitutionBasicResponse,
 )
+from app.schemas.institution_data import InstitutionComplete
 
 
 router = APIRouter(prefix="/institutions", tags=["institutions"])
@@ -444,16 +445,35 @@ async def get_state_summary(
     }
 
 
-# ============================================================================
-# HELPER ENDPOINT FOR TESTING
-# ============================================================================
-
-
-@router.get("/test/fields/{ipeds_id}")
-async def test_ipeds_fields(ipeds_id: int, db: AsyncSession = Depends(get_db)):
+@router.get("/complete/{institution_id}", response_model=InstitutionComplete)
+async def get_institution_complete(
+    institution_id: int, db: AsyncSession = Depends(get_db)
+):
     """
-    Test endpoint to verify IPEDS fields are populated correctly.
-    Shows all IPEDS fields for a specific institution.
+    Get a single institution by database ID with ALL fields.
+    Returns complete data including all IPEDS fields, costs, admissions, timestamps, etc.
+
+    PUBLIC endpoint - no authentication required.
+    """
+    query = select(Institution).where(Institution.id == institution_id)
+    result = await db.execute(query)
+    institution = result.scalar_one_or_none()
+
+    if not institution:
+        raise HTTPException(status_code=404, detail="Institution not found")
+
+    return institution
+
+
+@router.get("/complete/ipeds/{ipeds_id}", response_model=InstitutionComplete)
+async def get_institution_complete_by_ipeds(
+    ipeds_id: int, db: AsyncSession = Depends(get_db)
+):
+    """
+    Get a single institution by IPEDS ID with ALL fields.
+    Returns complete data including all IPEDS fields, costs, admissions, timestamps, etc.
+
+    PUBLIC endpoint - no authentication required.
     """
     query = select(Institution).where(Institution.ipeds_id == ipeds_id)
     result = await db.execute(query)
@@ -462,63 +482,4 @@ async def test_ipeds_fields(ipeds_id: int, db: AsyncSession = Depends(get_db)):
     if not institution:
         raise HTTPException(status_code=404, detail="Institution not found")
 
-    return {
-        "basic_info": {
-            "id": institution.id,
-            "ipeds_id": institution.ipeds_id,
-            "name": institution.name,
-            "city": institution.city,
-            "state": institution.state,
-            "website": institution.website,
-            "level": institution.level,
-            "control": institution.control,
-        },
-        "data_tracking": {
-            "data_completeness_score": institution.data_completeness_score,
-            "data_source": institution.data_source,
-            "ipeds_year": institution.ipeds_year,
-            "is_featured": institution.is_featured,
-            "data_last_updated": institution.data_last_updated,
-        },
-        "cost_data": {
-            "tuition_in_state": (
-                float(institution.tuition_in_state)
-                if institution.tuition_in_state
-                else None
-            ),
-            "tuition_out_of_state": (
-                float(institution.tuition_out_of_state)
-                if institution.tuition_out_of_state
-                else None
-            ),
-            "tuition_private": (
-                float(institution.tuition_private)
-                if institution.tuition_private
-                else None
-            ),
-            "room_cost": (
-                float(institution.room_cost) if institution.room_cost else None
-            ),
-            "board_cost": (
-                float(institution.board_cost) if institution.board_cost else None
-            ),
-            "room_and_board": (
-                float(institution.room_and_board)
-                if institution.room_and_board
-                else None
-            ),
-        },
-        "admissions_data": {
-            "acceptance_rate": (
-                float(institution.acceptance_rate)
-                if institution.acceptance_rate
-                else None
-            ),
-            "sat_reading_25th": institution.sat_reading_25th,
-            "sat_reading_75th": institution.sat_reading_75th,
-            "sat_math_25th": institution.sat_math_25th,
-            "sat_math_75th": institution.sat_math_75th,
-            "act_composite_25th": institution.act_composite_25th,
-            "act_composite_75th": institution.act_composite_75th,
-        },
-    }
+    return institution
