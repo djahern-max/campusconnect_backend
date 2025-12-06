@@ -42,6 +42,12 @@ class IPEDSDataUpdate(BaseModel):
     # Base fields
     website: Optional[str] = None
     level: Optional[int] = Field(None, ge=1, le=3)
+    student_faculty_ratio: Optional[float] = Field(
+        None, ge=0, le=100
+    )  # ← ADD THIS LINE
+    size_category: Optional[str] = None  # ← ADD THIS TOO
+    locale: Optional[str] = None  # ← AND THIS
+    control: Optional[int] = Field(None, ge=1, le=3)
 
     # Cost data
     tuition_in_state: Optional[Decimal] = Field(None, ge=0)
