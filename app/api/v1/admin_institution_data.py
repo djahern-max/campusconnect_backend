@@ -6,7 +6,8 @@ Allows institution admins to update their own data through the UI
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_, or_, desc, func
+from app.models.entity_image import EntityImage
 from typing import Optional
 from datetime import datetime
 from decimal import Decimal
@@ -18,7 +19,6 @@ from app.models.institution import Institution
 from app.models.institution_data_verifications import InstitutionDataVerification
 from app.schemas.institution import (
     InstitutionResponse,
-    InstitutionUpdate,
 )
 from app.schemas.admin_institution import (
     InstitutionBasicInfoUpdate,
@@ -180,15 +180,17 @@ async def get_institution_data(
     return institution
 
 
-@router.get("/{institution_id}/quality", response_model=InstitutionDataQualityResponse)
+@router.get("/{institution_id}/quality")
 async def get_data_quality(
     institution_id: int,
     current_admin: AdminUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get data quality report for institution
-    Shows what's missing, what's verified, completeness score breakdown
+    Get comprehensive data quality report
+    Shows which fields have data vs which are missing, plus image count and score breakdown
+
+    TOTAL: 100 points possible
     """
     await verify_admin_owns_institution(current_admin, institution_id)
 
@@ -201,40 +203,132 @@ async def get_data_quality(
             status_code=status.HTTP_404_NOT_FOUND, detail="Institution not found"
         )
 
-    # Get verification history
+    # All editable fields from dashboard
+    all_editable_fields = [
+        "website",
+        "level",
+        "control",
+        "size_category",
+        "locale",
+        "student_faculty_ratio",
+        "tuition_in_state",
+        "tuition_out_of_state",
+        "tuition_private",
+        "tuition_in_district",
+        "room_cost",
+        "board_cost",
+        "room_and_board",
+        "application_fee_undergrad",
+        "application_fee_grad",
+        "acceptance_rate",
+        "sat_reading_25th",
+        "sat_reading_75th",
+        "sat_math_25th",
+        "sat_math_75th",
+        "act_composite_25th",
+        "act_composite_75th",
+    ]
+
+    # Check which fields have data
+    fields_with_data = []
+    missing_fields = []
+
+    for field_name in all_editable_fields:
+        if hasattr(institution, field_name):
+            value = getattr(institution, field_name)
+            if value is not None:
+                fields_with_data.append(field_name)
+            else:
+                missing_fields.append(field_name)
+
+    # Get verification count
     verify_query = select(InstitutionDataVerification).where(
         InstitutionDataVerification.institution_id == institution_id
     )
     verify_result = await db.execute(verify_query)
     verifications = verify_result.scalars().all()
 
-    verified_fields = {v.field_name for v in verifications}
+    # Get image count
+    image_query = (
+        select(func.count())
+        .select_from(EntityImage)
+        .where(
+            and_(
+                EntityImage.entity_type == "institution",
+                EntityImage.entity_id == institution_id,
+            )
+        )
+    )
+    image_result = await db.execute(image_query)
+    image_count = image_result.scalar() or 0
 
-    # Analyze what's missing
-    missing_fields = []
-    if not institution.website:
-        missing_fields.append("website")
-    if not (
-        institution.tuition_in_state
-        or institution.tuition_out_of_state
-        or institution.tuition_private
+    # ✅ FIXED: CALCULATE SCORE BREAKDOWN (TOTALS TO 100 POINTS)
+    score_breakdown = {
+        "core_identity": 0,
+        "cost_data": 0,
+        "room_board": 0,
+        "admissions": 0,
+        "images": 0,
+        "admin_verified": 0,
+    }
+
+    # Core Identity (15 points)
+    if institution.name and institution.city and institution.state:
+        score_breakdown["core_identity"] += 8
+    if institution.website:
+        score_breakdown["core_identity"] += 7
+
+    # Cost Data (30 points - SAME FOR ALL INSTITUTIONS)
+    # ✅ Public schools need BOTH in-state AND out-of-state for full credit
+    # ✅ Private schools need their single tuition field
+    if institution.control == 1:  # Public
+        if institution.tuition_in_state and institution.tuition_in_state > 0:
+            score_breakdown["cost_data"] += 15
+        if institution.tuition_out_of_state and institution.tuition_out_of_state > 0:
+            score_breakdown["cost_data"] += 15
+    else:  # Private
+        if institution.tuition_private and institution.tuition_private > 0:
+            score_breakdown["cost_data"] += 30
+
+    # Room & Board (15 points)
+    if (
+        (institution.room_cost and institution.room_cost > 0)
+        or (institution.board_cost and institution.board_cost > 0)
+        or (institution.room_and_board and institution.room_and_board > 0)
     ):
-        missing_fields.append("tuition")
-    if not (institution.room_cost or institution.board_cost):
-        missing_fields.append("room_and_board")
-    if not institution.acceptance_rate:
-        missing_fields.append("acceptance_rate")
+        score_breakdown["room_board"] = 15
 
-    # Calculate score breakdown
+    # Admissions (10 points)
+    if institution.acceptance_rate:
+        score_breakdown["admissions"] += 5
+    if institution.sat_math_25th or institution.act_composite_25th:
+        score_breakdown["admissions"] += 5
+
+    # Images (20 points)
+    if image_count >= 1:
+        score_breakdown["images"] += 10
+    if image_count >= 3:
+        score_breakdown["images"] += 10
+
+    # Admin Verification (10 points)
+    if institution.data_source in ["admin", "mixed"]:
+        score_breakdown["admin_verified"] = 10
+
+    # ✅ CALCULATE TOTAL SCORE FROM BREAKDOWN
+    total_score = sum(score_breakdown.values())
+
+    # ✅ Ensure it never exceeds 100
+    total_score = min(total_score, 100)
+
     return InstitutionDataQualityResponse(
         institution_id=institution.id,
         institution_name=institution.name,
-        completeness_score=institution.data_completeness_score,
+        completeness_score=total_score,  # ✅ Use calculated score instead of database field
         data_source=institution.data_source,
         data_last_updated=institution.data_last_updated,
         ipeds_year=institution.ipeds_year,
         missing_fields=missing_fields,
-        verified_fields=list(verified_fields),
+        verified_fields=fields_with_data,
         verification_count=len(verifications),
         has_website=bool(institution.website),
         has_tuition_data=bool(
@@ -242,8 +336,15 @@ async def get_data_quality(
             or institution.tuition_out_of_state
             or institution.tuition_private
         ),
-        has_room_board=bool(institution.room_cost or institution.board_cost),
+        has_room_board=bool(
+            institution.room_cost
+            or institution.board_cost
+            or institution.room_and_board
+        ),
         has_admissions_data=bool(institution.acceptance_rate),
+        image_count=image_count,
+        has_images=image_count > 0,
+        score_breakdown=score_breakdown,
     )
 
 
@@ -435,6 +536,9 @@ async def verify_current_data(
     """
     Verify that current IPEDS or existing data is still accurate
     Quick action button: "Verify data is current for 2025-26"
+
+    ✅ FIXED: This now ONLY updates metadata, doesn't create verification records
+    since no data is actually changing (old_value == new_value)
     """
     await verify_admin_owns_institution(current_admin, institution_id)
 
@@ -447,8 +551,8 @@ async def verify_current_data(
             status_code=status.HTTP_404_NOT_FOUND, detail="Institution not found"
         )
 
-    # Create verification records for specified fields
-    fields_verified = verify_request.fields or [
+    # Fields to check for verification
+    fields_to_verify = verify_request.fields or [
         "tuition_in_state",
         "tuition_out_of_state",
         "tuition_private",
@@ -457,27 +561,19 @@ async def verify_current_data(
         "acceptance_rate",
     ]
 
+    # Count how many fields have data
     verified_count = 0
-    for field_name in fields_verified:
+    for field_name in fields_to_verify:
         if hasattr(institution, field_name):
             current_value = getattr(institution, field_name)
-            if (
-                current_value is not None
-            ):  # Only verify fields that have data    # TODO: Uncomment when InstitutionDataVerification model exists
-                #
-                await create_verification_record(
-                    db=db,
-                    institution_id=institution_id,
-                    field_name=field_name,
-                    old_value=current_value,
-                    new_value=current_value,  # Same value = verified as current
-                    verified_by=current_admin.email,
-                    notes=verify_request.notes
-                    or f"Verified as current for {verify_request.academic_year}",
-                )
+            if current_value is not None:
                 verified_count += 1
 
-    # Update metadata
+    # ✅ CHANGE: Only update metadata, don't create verification records
+    # Verification records should only be created when data actually changes
+    # (old_value != new_value), which happens in the update endpoints
+
+    # Update institution metadata to indicate it's been verified
     institution.data_source = "admin"  # Now admin-verified
     institution.data_last_updated = datetime.utcnow()
     institution.ipeds_year = verify_request.academic_year

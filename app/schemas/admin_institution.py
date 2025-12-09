@@ -5,7 +5,7 @@ Separate from public institution schemas
 """
 
 from pydantic import BaseModel, Field, HttpUrl
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 
 
@@ -149,28 +149,14 @@ class InstitutionDataQualityResponse(BaseModel):
     has_room_board: bool
     has_admissions_data: bool
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "institution_id": 123,
-                "institution_name": "Example University",
-                "completeness_score": 75,
-                "data_source": "mixed",
-                "data_last_updated": "2025-11-26T10:00:00",
-                "ipeds_year": "2023-24",
-                "missing_fields": ["acceptance_rate", "sat_math_25th"],
-                "verified_fields": [
-                    "tuition_in_state",
-                    "tuition_out_of_state",
-                    "room_cost",
-                ],
-                "verification_count": 3,
-                "has_website": True,
-                "has_tuition_data": True,
-                "has_room_board": True,
-                "has_admissions_data": False,
-            }
-        }
+    # 🆕 ADD THESE FIELDS
+    image_count: int = Field(0, description="Number of gallery images")
+    has_images: bool = Field(False, description="Has at least 1 image")
+
+    # 🆕 ADD DETAILED SCORE BREAKDOWN
+    score_breakdown: Dict[str, int] = Field(
+        default_factory=dict, description="Detailed score breakdown by category"
+    )
 
 
 class VerificationHistoryItem(BaseModel):
