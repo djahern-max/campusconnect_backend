@@ -183,7 +183,7 @@ async def get_data_quality(
     all_editable_fields = [
         "website",
         "level",
-        "control",
+        "control_type",  # ✅ Fixed: was "control"
         "size_category",
         "locale",
         "student_faculty_ratio",
@@ -217,7 +217,7 @@ async def get_data_quality(
             else:
                 missing_fields.append(field_name)
 
-    # Get verification count
+    # ✅ FIXED: Just count verifications, don't load all records
     verify_query = (
         select(func.count())
         .select_from(InstitutionDataVerification)
@@ -240,7 +240,7 @@ async def get_data_quality(
     image_result = await db.execute(image_query)
     image_count = image_result.scalar() or 0
 
-    # ✅ FIXED: CALCULATE SCORE BREAKDOWN (TOTALS TO EXACTLY 100 POINTS)
+    # ✅ CALCULATE SCORE BREAKDOWN (TOTALS TO EXACTLY 100 POINTS)
     # Core: 15 | Cost: 30 | Housing: 15 | Admissions: 10 | Images: 20 | Verification: 10 = 100
     score_breakdown = {
         "core_identity": 0,
@@ -258,18 +258,24 @@ async def get_data_quality(
         score_breakdown["core_identity"] += 7  # Website URL
 
     # Cost Data (30 points - SAME FOR ALL INSTITUTIONS)
-    # Public schools need BOTH in-state AND out-of-state for full credit (15 pts each)
-    # Private schools need their single tuition field (30 pts)
-    if (
-        institution.control_type == "PUBLIC"
-    ):  # ✅ Fixed: use control_type, check string value
-        if institution.tuition_in_state and institution.tuition_in_state > 0:
-            score_breakdown["cost_data"] += 15
-        if institution.tuition_out_of_state and institution.tuition_out_of_state > 0:
-            score_breakdown["cost_data"] += 15
-    else:  # Private (PRIVATE_NONPROFIT or PRIVATE_FOR_PROFIT)
-        if institution.tuition_private and institution.tuition_private > 0:
-            score_breakdown["cost_data"] += 30
+    # ✅ FIXED: Handle enum comparison properly
+    control_type = getattr(institution, "control_type", None)
+    if control_type:
+        # Convert enum to string for comparison
+        control_str = str(control_type).upper()
+        if "PUBLIC" in control_str:
+            # Public: 15 pts each for in-state and out-of-state
+            if institution.tuition_in_state and institution.tuition_in_state > 0:
+                score_breakdown["cost_data"] += 15
+            if (
+                institution.tuition_out_of_state
+                and institution.tuition_out_of_state > 0
+            ):
+                score_breakdown["cost_data"] += 15
+        else:
+            # Private: 30 pts for single tuition
+            if institution.tuition_private and institution.tuition_private > 0:
+                score_breakdown["cost_data"] += 30
 
     # Room & Board (15 points total)
     if (
@@ -304,13 +310,13 @@ async def get_data_quality(
     return InstitutionDataQualityResponse(
         institution_id=institution.id,
         institution_name=institution.name,
-        completeness_score=total_score,  # ✅ Use calculated score instead of database field
-        data_source=institution.data_source,
+        completeness_score=total_score,  # ✅ Use calculated score
+        data_source=institution.data_source or "unknown",
         data_last_updated=institution.data_last_updated,
-        ipeds_year=institution.ipeds_year,
+        ipeds_year=getattr(institution, "ipeds_year", None),
         missing_fields=missing_fields,
         verified_fields=fields_with_data,
-        verification_count=verification_count,
+        verification_count=verification_count,  # ✅ Use the count
         has_website=bool(institution.website),
         has_tuition_data=bool(
             institution.tuition_in_state
