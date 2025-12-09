@@ -218,11 +218,13 @@ async def get_data_quality(
                 missing_fields.append(field_name)
 
     # Get verification count
-    verify_query = select(InstitutionDataVerification).where(
-        InstitutionDataVerification.institution_id == institution_id
+    verify_query = (
+        select(func.count())
+        .select_from(InstitutionDataVerification)
+        .where(InstitutionDataVerification.institution_id == institution_id)
     )
     verify_result = await db.execute(verify_query)
-    verifications = verify_result.scalars().all()
+    verification_count = verify_result.scalar() or 0
 
     # Get image count
     image_query = (
@@ -308,7 +310,7 @@ async def get_data_quality(
         ipeds_year=institution.ipeds_year,
         missing_fields=missing_fields,
         verified_fields=fields_with_data,
-        verification_count=len(verifications),
+        verification_count=verification_count,
         has_website=bool(institution.website),
         has_tuition_data=bool(
             institution.tuition_in_state
