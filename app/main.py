@@ -28,6 +28,7 @@ from app.api.v1 import (
     admin_gallery,
     admin_videos,
     admin_extended_info,
+    admin_institutions,
     subscriptions,
     webhooks,
     institutions_data,
@@ -100,7 +101,7 @@ app.include_router(webhooks.router, prefix="/api/v1")
 
 # 8. Admin Institution & Scholarship Management
 
-
+app.include_router(admin_institutions.router, prefix="/api/v1/admin")
 app.include_router(admin_scholarship.router, prefix="/api/v1")
 app.include_router(admin_institution_data.router, prefix="/api/v1/admin")
 
