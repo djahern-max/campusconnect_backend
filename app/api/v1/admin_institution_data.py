@@ -156,30 +156,6 @@ async def recalculate_completeness_score(
 # ============================================================================
 
 
-@router.get("/{institution_id}", response_model=InstitutionResponse)
-async def get_institution_data(
-    institution_id: int,
-    current_admin: AdminUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Get current institution data
-    Admins can only see their own institution (unless super_admin)
-    """
-    await verify_admin_owns_institution(current_admin, institution_id)
-
-    query = select(Institution).where(Institution.id == institution_id)
-    result = await db.execute(query)
-    institution = result.scalar_one_or_none()
-
-    if not institution:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Institution not found"
-        )
-
-    return institution
-
-
 @router.get("/{institution_id}/quality")
 async def get_data_quality(
     institution_id: int,
@@ -262,7 +238,8 @@ async def get_data_quality(
     image_result = await db.execute(image_query)
     image_count = image_result.scalar() or 0
 
-    # ✅ FIXED: CALCULATE SCORE BREAKDOWN (TOTALS TO 100 POINTS)
+    # ✅ FIXED: CALCULATE SCORE BREAKDOWN (TOTALS TO EXACTLY 100 POINTS)
+    # Core: 15 | Cost: 30 | Housing: 15 | Admissions: 10 | Images: 20 | Verification: 10 = 100
     score_breakdown = {
         "core_identity": 0,
         "cost_data": 0,
@@ -272,25 +249,27 @@ async def get_data_quality(
         "admin_verified": 0,
     }
 
-    # Core Identity (15 points)
+    # Core Identity (15 points total)
     if institution.name and institution.city and institution.state:
-        score_breakdown["core_identity"] += 8
+        score_breakdown["core_identity"] += 8  # Name & location
     if institution.website:
-        score_breakdown["core_identity"] += 7
+        score_breakdown["core_identity"] += 7  # Website URL
 
     # Cost Data (30 points - SAME FOR ALL INSTITUTIONS)
-    # ✅ Public schools need BOTH in-state AND out-of-state for full credit
-    # ✅ Private schools need their single tuition field
-    if institution.control == 1:  # Public
+    # Public schools need BOTH in-state AND out-of-state for full credit (15 pts each)
+    # Private schools need their single tuition field (30 pts)
+    if (
+        institution.control_type == "PUBLIC"
+    ):  # ✅ Fixed: use control_type, check string value
         if institution.tuition_in_state and institution.tuition_in_state > 0:
             score_breakdown["cost_data"] += 15
         if institution.tuition_out_of_state and institution.tuition_out_of_state > 0:
             score_breakdown["cost_data"] += 15
-    else:  # Private
+    else:  # Private (PRIVATE_NONPROFIT or PRIVATE_FOR_PROFIT)
         if institution.tuition_private and institution.tuition_private > 0:
             score_breakdown["cost_data"] += 30
 
-    # Room & Board (15 points)
+    # Room & Board (15 points total)
     if (
         (institution.room_cost and institution.room_cost > 0)
         or (institution.board_cost and institution.board_cost > 0)
@@ -298,19 +277,19 @@ async def get_data_quality(
     ):
         score_breakdown["room_board"] = 15
 
-    # Admissions (10 points)
+    # Admissions (10 points total)
     if institution.acceptance_rate:
-        score_breakdown["admissions"] += 5
+        score_breakdown["admissions"] += 5  # Acceptance rate
     if institution.sat_math_25th or institution.act_composite_25th:
-        score_breakdown["admissions"] += 5
+        score_breakdown["admissions"] += 5  # Test scores
 
-    # Images (20 points)
+    # Images (20 points total)
     if image_count >= 1:
-        score_breakdown["images"] += 10
+        score_breakdown["images"] += 10  # First milestone: 1+ image
     if image_count >= 3:
-        score_breakdown["images"] += 10
+        score_breakdown["images"] += 10  # Second milestone: 3+ images
 
-    # Admin Verification (10 points)
+    # Admin Verification (10 points total)
     if institution.data_source in ["admin", "mixed"]:
         score_breakdown["admin_verified"] = 10
 
